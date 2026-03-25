@@ -92,6 +92,7 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
     opponentQuit,
     rematchState,
     opponentExited,
+    activeModifier,
     sendPaddleMove,
     sendPauseRequest,
     sendResumeRequest,
@@ -372,6 +373,9 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
     // Pause state
     pauseState,
     opponentQuit,
+
+    // Modifier state
+    activeModifier,
 
     // Rematch state
     rematchState,

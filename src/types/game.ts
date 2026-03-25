@@ -47,6 +47,56 @@ export interface AIConfig {
   aggressiveness: number;     // 0-1, higher = pushes further forward
 }
 
+// === Modifier Types (matches server types) ===
+
+export type ModifierType =
+  | 'puck_speed'
+  | 'paddle_size'
+  | 'goal_width'
+  | 'puck_size'
+  | 'invisible_puck';
+
+export type ModifierVariation =
+  | 'boost'
+  | 'slow'
+  | 'shrink'
+  | 'grow'
+  | 'widen'
+  | 'narrow'
+  | 'hidden';
+
+export type ModifierTarget = 'player1' | 'player2' | 'both' | 'puck';
+
+export interface ActiveModifier {
+  id: string;
+  type: ModifierType;
+  variation: ModifierVariation;
+  target: ModifierTarget;
+  intensity: number;
+  duration: number;
+  reason: string;
+  startTime: number;
+  expiresAt: number;
+}
+
+export interface ModifierAppliedMessage {
+  type: 'MODIFIER_APPLIED';
+  modifier: {
+    id: string;
+    type: ModifierType;
+    variation: ModifierVariation;
+    target: ModifierTarget;
+    duration: number;
+    reason: string;
+    startTime: number;
+  };
+}
+
+export interface ModifierExpiredMessage {
+  type: 'MODIFIER_EXPIRED';
+  modifierId: string;
+}
+
 // Physics configuration
 export interface PhysicsConfig {
   engine: {

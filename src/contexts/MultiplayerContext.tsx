@@ -10,6 +10,7 @@
  */
 
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
+import type { ActiveModifier, ModifierType, ModifierVariation, ModifierTarget } from '../types/game';
 
 // Server message types
 interface ServerGameState {
@@ -70,7 +71,9 @@ type ServerMessage =
   | { type: 'rematch-requested' }
   | { type: 'rematch-accepted' }
   | { type: 'rematch-declined' }
-  | { type: 'opponent-exited' };
+  | { type: 'opponent-exited' }
+  | { type: 'MODIFIER_APPLIED'; modifier: { id: string; type: ModifierType; variation: ModifierVariation; target: ModifierTarget; duration: number; reason: string; startTime: number } }
+  | { type: 'MODIFIER_EXPIRED'; modifierId: string };
 
 interface MultiplayerContextValue {
   // Connection state
@@ -89,6 +92,9 @@ interface MultiplayerContextValue {
   // Pause state
   pauseState: PauseState;
   opponentQuit: OpponentQuitState;
+
+  // Modifier state
+  activeModifier: ActiveModifier | null;
 
   // Rematch state
   rematchState: RematchState;
@@ -157,6 +163,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const [opponentExited, setOpponentExited] = useState<OpponentExitedState>({
     hasExited: false,
   });
+
+  // Modifier state
+  const [activeModifier, setActiveModifier] = useState<ActiveModifier | null>(null);
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -544,6 +553,26 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
                 declined: false,
               });
               break;
+
+            case 'MODIFIER_APPLIED': {
+              const mod = message.modifier;
+              setActiveModifier({
+                id: mod.id,
+                type: mod.type,
+                variation: mod.variation,
+                target: mod.target,
+                intensity: 1,
+                duration: mod.duration,
+                reason: mod.reason,
+                startTime: mod.startTime,
+                expiresAt: mod.startTime + mod.duration,
+              });
+              break;
+            }
+
+            case 'MODIFIER_EXPIRED':
+              setActiveModifier(null);
+              break;
           }
         } catch (err) {
           console.error('[MultiplayerContext] Failed to parse message:', err);
@@ -614,6 +643,8 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     // Pause state
     pauseState,
     opponentQuit,
+    // Modifier state
+    activeModifier,
     // Rematch state
     rematchState,
     opponentExited,
