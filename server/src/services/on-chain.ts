@@ -20,9 +20,8 @@ export class OnChainService {
     const privKey = process.env.SERVER_PRIVATE_KEY;
     if (privKey) {
       try {
-        this.keypair = Ed25519Keypair.fromSecretKey(
-          Uint8Array.from(Buffer.from(privKey, 'hex')),
-        );
+        // suiprivkey1q... bech32 format — fromSecretKey decodes it internally
+        this.keypair = Ed25519Keypair.fromSecretKey(privKey);
         console.log(
           '[OnChain] Server wallet:',
           this.keypair.getPublicKey().toSuiAddress(),

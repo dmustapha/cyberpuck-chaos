@@ -69,8 +69,8 @@ app.use(
   })
 );
 
-// Handle preflight requests explicitly
-app.options('*', cors());
+// Handle preflight requests explicitly (Express 5: '*' not supported, use '{*path}')
+app.options('{*path}', cors());
 
 // Rate limiting for API routes
 const apiLimiter = rateLimit({
