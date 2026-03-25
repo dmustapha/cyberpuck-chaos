@@ -1,0 +1,2 @@
+[    1894ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://air-hockey-base.vercel.app/.well-known/farcaster.json:0
+[    1894ms] [ERROR] The source list for the Content Security Policy directive 'connect-src' contains an invalid source: 'https://air-hockey-server-production.up.railway.app%0A'. It will be ignored. @ https://air-hockey-base.vercel.app/.well-known/farcaster.json:0

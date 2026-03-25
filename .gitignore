@@ -1,0 +1,53 @@
+# dependencies
+/node_modules
+/server/node_modules
+/server/dist
+/contracts/node_modules
+/contracts/artifacts
+/contracts/cache
+/contracts/typechain-types
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env
+.env.local
+.env*.local
+contracts/.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Local
+.claude/
+docs/context/
+docs/prompts/
