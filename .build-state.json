@@ -1,0 +1,122 @@
+{
+  "mode": "resume",
+  "currentPhase": 3,
+  "currentStep": "3.8",
+  "startedAt": "2026-03-26T08:00:00Z",
+  "lastUpdated": "2026-03-27T04:00:00Z",
+  "planFile": "PLAN.md",
+  "archFile": "ARCHITECTURE.md",
+  "stackFamily": "Full-Stack Web + Smart Contracts + AI Agent",
+  "phases": {
+    "0": {"status": "complete"},
+    "1": {
+      "status": "complete",
+      "steps": {
+        "1.1": {"status": "complete", "verification": "PASS"},
+        "1.2": {"status": "complete", "verification": "PASS"},
+        "1.3": {"status": "complete", "verification": "PASS"},
+        "1.4": {"status": "complete", "verification": "PASS"},
+        "1.5": {"status": "complete", "verification": "PASS"}
+      }
+    },
+    "2": {
+      "status": "complete",
+      "steps": {
+        "2.1": {"status": "complete", "verification": "PASS"},
+        "2.2": {"status": "complete", "verification": "PASS"},
+        "2.3": {"status": "complete", "verification": "PASS", "deviation": true},
+        "2.4": {"status": "complete", "verification": "PASS"},
+        "2.5": {"status": "complete", "verification": "PASS", "deviation": true}
+      }
+    },
+    "3": {
+      "status": "complete",
+      "steps": {
+        "3.1": {"status": "complete", "verification": "PASS", "note": "Anthropic tool_use adaptation"},
+        "3.2": {"status": "complete", "verification": "PASS"},
+        "3.3": {"status": "complete", "verification": "PASS", "note": "Scale drift test: zero drift"},
+        "3.4": {"status": "complete", "verification": "PASS"},
+        "3.5": {"status": "complete", "verification": "PASS", "note": "Bech32 key format fix"},
+        "3.6": {"status": "complete", "verification": "PASS", "note": "Per-room chaos + proxy pattern"},
+        "3.7": {"status": "complete", "verification": "PASS"},
+        "3.8": {"status": "complete", "verification": "PASS", "note": "Server starts clean, wallet logged"}
+      }
+    }
+  },
+  "deviations": [
+    {
+      "step": "1.2",
+      "planned": "Use only arch doc package.json deps",
+      "actual": "Added back framer-motion, gsap, zustand, matter-js (client), cors, helmet, express-rate-limit",
+      "reason": "Base repo's 55+ components import these. Removing breaks the build.",
+      "risk": "low",
+      "downstream": ["none"]
+    },
+    {
+      "step": "1.2",
+      "planned": "Use OpenAI SDK (openai@6.32.0)",
+      "actual": "Using @anthropic-ai/sdk instead",
+      "reason": "User has Anthropic API key, no OpenAI key available",
+      "risk": "moderate",
+      "downstream": ["Phase 3: ChaosSkill must use Anthropic tool_use instead of OpenAI structured output"]
+    },
+    {
+      "step": "2.3",
+      "planned": "MatchRecord and ChaosAgentDecision with 'has key' only",
+      "actual": "Added 'store' ability to both structs",
+      "reason": "public_freeze_object requires key + store. Arch doc had only key.",
+      "risk": "low",
+      "downstream": ["none — store is required for the pattern to work"]
+    },
+    {
+      "step": "2.5",
+      "planned": "Replace PHYSICS_CONFIG with new PHYSICS export",
+      "actual": "Kept backward-compatible PHYSICS_CONFIG alongside new PHYSICS",
+      "reason": "engine.ts and game-server.ts have 40+ references to PHYSICS_CONFIG with old nested shape (.engine.gravity, .game.broadcastRate, .wall.restitution, .puck.mass etc). Replacing would break the entire server.",
+      "risk": "low",
+      "downstream": ["New chaos code uses PHYSICS or shared.ts PHYSICS_CONFIG; existing code keeps working"]
+    }
+  ],
+  "failedAttempts": [
+    {
+      "step": "1.4",
+      "what": "cargo install one from source",
+      "error": "axum-server compilation error",
+      "resolution": "Downloaded pre-built binary from GitHub releases v1.1.1"
+    }
+  ],
+  "knownRisks": [],
+  "verificationCommands": [
+    {"phase": 2, "step": "2.3", "command": "one move build", "result": "PASS", "note": "warnings only (duplicate alias, public entry lint)"},
+    {"phase": 2, "step": "2.4", "command": "one client publish --gas-budget 100000000", "result": "PASS", "note": "PackageID: 0xcf5aa21a59cb1439a28e6537c830071ebb2589f324bbf2941761471ff41e76f7, tx: 4Mwo3uvYvAqDDzBCDCGW9f2GEuiDZmqmTrksYuRsULZL"},
+    {"phase": 2, "step": "2.5", "command": "npx tsc --noEmit", "result": "PASS", "note": "server typecheck clean"}
+  ],
+  "filesWritten": [
+    "contracts/Move.toml",
+    "contracts/sources/chaos_puck.move",
+    "server/src/types/shared.ts",
+    "server/src/physics/config.ts",
+    "server/src/chaos/skills.ts",
+    "server/src/chaos/agent.ts",
+    "server/src/chaos/executor.ts",
+    "server/src/chaos/middleware.ts",
+    "server/src/services/on-chain.ts"
+  ],
+  "filesModified": [
+    "server/src/physics/engine.ts",
+    "server/src/services/game-server.ts",
+    "server/src/index.ts",
+    "server/src/websocket/message-types.ts",
+    "server/src/websocket/room-manager.ts",
+    "server/src/websocket/server.ts"
+  ],
+  "contractAddresses": {
+    "chaos_puck": "0xcf5aa21a59cb1439a28e6537c830071ebb2589f324bbf2941761471ff41e76f7"
+  },
+  "generatedCredentials": {
+    "ONECHAIN_ADDRESS": "0x3b0a4e98f578d12f284cb85d841a69f0dce8741c490d64f0b59e5a70a59820f1",
+    "SERVER_PRIVATE_KEY": "suiprivkey1qpzu5u0g2jczrrtqk06k4c3srqxtgtdlz2mrtj86642ptf2207gd2ss8vaz",
+    "ANTHROPIC_API_KEY": "set in .env.local and server/.env",
+    "CHAOS_PUCK_PACKAGE_ID": "0xcf5aa21a59cb1439a28e6537c830071ebb2589f324bbf2941761471ff41e76f7"
+  }
+}
