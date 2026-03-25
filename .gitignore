@@ -51,3 +51,6 @@ next-env.d.ts
 .claude/
 docs/context/
 docs/prompts/
+
+.env.local
+server/.env
