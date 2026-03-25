@@ -3,8 +3,23 @@ import { roomManager, type PauseState } from '../websocket/room-manager';
 import { PhysicsEngine } from '../physics/engine';
 import { PHYSICS_CONFIG } from '../physics/config';
 import type { PauseReason, Score } from '../websocket/message-types';
+import { ChaosMiddleware } from '../chaos/middleware';
+import { OnChainService } from './on-chain';
+import type { ChaosInput } from '../types/shared';
+import type { PhysicsBodies } from '../chaos/executor';
 
 export class GameServer {
+  // === Chaos Agent Integration ===
+  private chaosPerRoom = new Map<string, ChaosMiddleware>();
+  private onChain: OnChainService;
+  private matchStartTimes = new Map<string, number>();
+  private goalStreaks = new Map<string, [number, number]>();
+  private paddleActivitySamples = new Map<string, [number[], number[]]>();
+
+  constructor(onChain: OnChainService) {
+    this.onChain = onChain;
+  }
+
   // State locks to prevent race conditions
   private startingGames: Set<string> = new Set();
   private endingGames: Set<string> = new Set();
@@ -552,10 +567,30 @@ export class GameServer {
     const physics = new PhysicsEngine();
     room.physicsEngine = physics;
 
+    // === Chaos Agent: init per-room chaos middleware ===
+    const chaos = new ChaosMiddleware();
+    this.chaosPerRoom.set(gameId, chaos);
+    const matchStartTime = Date.now();
+    this.matchStartTimes.set(gameId, matchStartTime);
+    this.goalStreaks.set(gameId, [0, 0]);
+    this.paddleActivitySamples.set(gameId, [[], []]);
+    chaos.onMatchStart(matchStartTime);
+
     // Register goal callback
     physics.onGoal((scorer) => {
       const state = physics.getState();
       roomManager.broadcast(gameId, { type: 'goal', scorer, newScore: state.score });
+
+      // === Chaos Agent: track goal streaks ===
+      const streaks = this.goalStreaks.get(gameId) ?? [0, 0];
+      if (scorer === 1) {
+        streaks[0]++;
+        streaks[1] = 0;
+      } else {
+        streaks[1]++;
+        streaks[0] = 0;
+      }
+      this.goalStreaks.set(gameId, streaks);
 
       // Check for game over
       if (state.score.player1 >= PHYSICS_CONFIG.game.maxScore) {
@@ -569,12 +604,79 @@ export class GameServer {
     physics.start();
     roomManager.setRoomState(gameId, 'playing');
 
-    // Start broadcast loop (30Hz)
+    // Start broadcast loop (30Hz) with chaos integration
     const broadcastMs = 1000 / PHYSICS_CONFIG.game.broadcastRate;
     room.broadcastInterval = setInterval(() => {
       const state = physics.getState();
+
+      // === Chaos Agent: tick ===
+      const roomChaos = this.chaosPerRoom.get(gameId);
+      if (roomChaos) {
+        const bodies: PhysicsBodies = {
+          puck: physics.getPuckBody(),
+          paddles: [physics.getPaddle1Body(), physics.getPaddle2Body()],
+        };
+        const chaosInput = this.buildChaosInput(gameId, state);
+        const chaosEvent = roomChaos.tick(bodies, chaosInput);
+
+        if (chaosEvent?.type === 'modifier_applied' && chaosEvent.modifier) {
+          roomManager.broadcast(gameId, {
+            type: 'MODIFIER_APPLIED',
+            modifier: {
+              id: chaosEvent.modifier.id,
+              type: chaosEvent.modifier.type,
+              variation: chaosEvent.modifier.variation,
+              target: chaosEvent.modifier.target,
+              duration: chaosEvent.modifier.duration,
+              reason: chaosEvent.modifier.reason,
+              startTime: chaosEvent.modifier.startTime,
+            },
+          });
+        }
+
+        if (chaosEvent?.type === 'modifier_expired' && chaosEvent.modifierId) {
+          roomManager.broadcast(gameId, {
+            type: 'MODIFIER_EXPIRED',
+            modifierId: chaosEvent.modifierId,
+          });
+        }
+      }
+
       roomManager.broadcast(gameId, { type: 'state-update', ...state });
     }, broadcastMs);
+  }
+
+  private buildChaosInput(gameId: string, state: ReturnType<PhysicsEngine['getState']>): ChaosInput {
+    const matchStart = this.matchStartTimes.get(gameId) ?? Date.now();
+    const elapsed = (Date.now() - matchStart) / 1000;
+    const totalDuration = 300; // 5 min max match
+    const puckSpeed = Math.sqrt(state.puck.vx ** 2 + state.puck.vy ** 2);
+
+    let matchPhase: 'early' | 'mid' | 'late';
+    if (elapsed < 30) matchPhase = 'early';
+    else if (elapsed < totalDuration * 0.7) matchPhase = 'mid';
+    else matchPhase = 'late';
+
+    const samples = this.paddleActivitySamples.get(gameId) ?? [[], []];
+    const p1Activity = samples[0].length > 0
+      ? samples[0].reduce((a, b) => a + b, 0) / samples[0].length
+      : 50;
+    const p2Activity = samples[1].length > 0
+      ? samples[1].reduce((a, b) => a + b, 0) / samples[1].length
+      : 50;
+
+    const streaks = this.goalStreaks.get(gameId) ?? [0, 0];
+
+    return {
+      score: [state.score.player1, state.score.player2],
+      streaks: streaks as [number, number],
+      paddleActivity: [Math.min(100, p1Activity), Math.min(100, p2Activity)],
+      puckAvgSpeed: puckSpeed,
+      matchPhase,
+      recentModifiers: [],
+      matchTimeSeconds: Math.floor(elapsed),
+      matchDurationLimit: totalDuration,
+    };
   }
 
   private async endGame(gameId: string, winner: 1 | 2, score: { player1: number; player2: number }): Promise<void> {
@@ -607,6 +709,42 @@ export class GameServer {
 
     roomManager.setRoomState(gameId, 'ended');
     roomManager.broadcast(gameId, { type: 'game-over', winner, finalScore: score });
+
+    // === Chaos Agent: end match + on-chain recording ===
+    const chaos = this.chaosPerRoom.get(gameId);
+    if (chaos) {
+      const { decisions, modifierCount } = chaos.onMatchEnd();
+
+      // Record on-chain (async, non-blocking)
+      if (this.onChain.enabled) {
+        const matchStart = this.matchStartTimes.get(gameId) ?? Date.now();
+        this.onChain.recordMatchWithDecisions(
+          {
+            player1: '0x0', // Wallet addresses wired in Phase 4
+            player2: '0x0',
+            score1: score.player1,
+            score2: score.player2,
+            durationSeconds: Math.floor((Date.now() - matchStart) / 1000),
+            modifiersDeployed: modifierCount,
+            timestamp: Math.floor(Date.now() / 1000),
+          },
+          decisions
+            .filter((d) => d.decision.action === 'deploy_modifier' && d.decision.modifier)
+            .map((d) => ({
+              modifierType: d.decision.modifier!.type,
+              target: d.decision.modifier!.target,
+              reason: d.decision.modifier!.reason,
+              timestamp: Math.floor(d.timestamp / 1000),
+            })),
+        ).catch((err) => console.error('[GameServer] On-chain recording failed:', err));
+      }
+
+      // Clean up chaos state
+      this.chaosPerRoom.delete(gameId);
+      this.matchStartTimes.delete(gameId);
+      this.goalStreaks.delete(gameId);
+      this.paddleActivitySamples.delete(gameId);
+    }
 
     // Clean up state locks
     this.endingGames.delete(gameId);
@@ -727,4 +865,19 @@ export class GameServer {
   }
 }
 
-export const gameServer = new GameServer();
+// Singleton created later with OnChainService — see createGameServer()
+let _gameServer: GameServer | null = null;
+export function createGameServer(onChain: OnChainService): GameServer {
+  _gameServer = new GameServer(onChain);
+  return _gameServer;
+}
+export function getGameServer(): GameServer {
+  if (!_gameServer) throw new Error('GameServer not initialized — call createGameServer first');
+  return _gameServer;
+}
+// Backward-compatible lazy getter (used by existing imports)
+export const gameServer = new Proxy({} as GameServer, {
+  get(_, prop) {
+    return (getGameServer() as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});

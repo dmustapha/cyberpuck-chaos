@@ -159,6 +159,11 @@ export class PhysicsEngine {
     }
   }
 
+  // --- Chaos Agent body accessors ---
+  getPuckBody(): Matter.Body { return this.puck; }
+  getPaddle1Body(): Matter.Body { return this.paddle1; }
+  getPaddle2Body(): Matter.Body { return this.paddle2; }
+
   /**
    * Get the current game state
    */

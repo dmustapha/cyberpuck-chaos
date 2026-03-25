@@ -8,7 +8,11 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { setupWebSocketServer } from './websocket/server';
-import { gameServer } from './services/game-server';
+import { createGameServer } from './services/game-server';
+import { OnChainService } from './services/on-chain';
+
+const onChainService = new OnChainService();
+const gameServer = createGameServer(onChainService);
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 

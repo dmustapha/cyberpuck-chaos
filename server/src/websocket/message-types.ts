@@ -189,6 +189,25 @@ export interface OpponentExitedMessage {
   type: 'opponent-exited';
 }
 
+// === Chaos Agent Messages ===
+export interface ModifierAppliedServerMessage {
+  type: 'MODIFIER_APPLIED';
+  modifier: {
+    id: string;
+    type: string;
+    variation: string;
+    target: string;
+    duration: number;
+    reason: string;
+    startTime: number;
+  };
+}
+
+export interface ModifierExpiredServerMessage {
+  type: 'MODIFIER_EXPIRED';
+  modifierId: string;
+}
+
 export type ServerMessage =
   | RoomJoinedMessage
   | OpponentJoinedMessage
@@ -206,7 +225,9 @@ export type ServerMessage =
   | RematchRequestedMessage
   | RematchAcceptedMessage
   | RematchDeclinedMessage
-  | OpponentExitedMessage;
+  | OpponentExitedMessage
+  | ModifierAppliedServerMessage
+  | ModifierExpiredServerMessage;
 
 // =============================================================================
 // Type Guards - Client Messages
@@ -451,6 +472,8 @@ export const SERVER_MESSAGE_TYPES = [
   'rematch-accepted',
   'rematch-declined',
   'opponent-exited',
+  'MODIFIER_APPLIED',
+  'MODIFIER_EXPIRED',
 ] as const;
 
 export type ClientMessageType = (typeof CLIENT_MESSAGE_TYPES)[number];
