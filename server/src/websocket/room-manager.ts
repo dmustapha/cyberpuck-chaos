@@ -245,6 +245,72 @@ export class RoomManager {
 
     console.log(`[RoomManager] Cleaned up room ${gameId}`);
   }
+  // === Quick Match ===
+  private matchmakingQueue: Array<{
+    ws: WebSocket;
+    playerId: string;
+    walletAddress?: string;
+    joinedAt: number;
+  }> = [];
+
+  private matchmakingTimer: ReturnType<typeof setInterval> | null = null;
+
+  quickMatch(ws: WebSocket, playerId: string, walletAddress?: string): void {
+    // Prevent duplicate queue entries
+    if (this.matchmakingQueue.some((q) => q.ws === ws)) return;
+
+    this.matchmakingQueue.push({ ws, playerId, walletAddress, joinedAt: Date.now() });
+
+    try {
+      ws.send(JSON.stringify({ type: 'MATCHMAKING_START' }));
+    } catch { /* ignore */ }
+
+    this.tryMatchmake();
+
+    if (!this.matchmakingTimer) {
+      this.matchmakingTimer = setInterval(() => this.checkMatchmakingTimeouts(), 5000);
+    }
+  }
+
+  cancelMatchmaking(ws: WebSocket): void {
+    this.matchmakingQueue = this.matchmakingQueue.filter((q) => q.ws !== ws);
+    try {
+      ws.send(JSON.stringify({ type: 'MATCHMAKING_CANCEL' }));
+    } catch { /* ignore */ }
+  }
+
+  private tryMatchmake(): void {
+    while (this.matchmakingQueue.length >= 2) {
+      const player1 = this.matchmakingQueue.shift()!;
+      const player2 = this.matchmakingQueue.shift()!;
+
+      const gameId = `qm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      this.createRoom(gameId);
+      this.joinRoom(gameId, player1.playerId, player1.ws);
+      this.joinRoom(gameId, player2.playerId, player2.ws);
+
+      const found = JSON.stringify({ type: 'MATCHMAKING_FOUND', roomCode: gameId });
+      try { player1.ws.send(found); } catch { /* ignore */ }
+      try { player2.ws.send(found); } catch { /* ignore */ }
+    }
+
+    if (this.matchmakingQueue.length === 0 && this.matchmakingTimer) {
+      clearInterval(this.matchmakingTimer);
+      this.matchmakingTimer = null;
+    }
+  }
+
+  private checkMatchmakingTimeouts(): void {
+    const now = Date.now();
+    const timedOut = this.matchmakingQueue.filter((q) => now - q.joinedAt > 60_000);
+
+    for (const player of timedOut) {
+      this.matchmakingQueue = this.matchmakingQueue.filter((q) => q.ws !== player.ws);
+      try {
+        player.ws.send(JSON.stringify({ type: 'WAITING_TIMEOUT' }));
+      } catch { /* ignore */ }
+    }
+  }
 }
 
 // Singleton instance

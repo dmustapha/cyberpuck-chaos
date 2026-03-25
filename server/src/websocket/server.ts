@@ -161,6 +161,13 @@ function handleMessage(ws: WebSocket, message: ClientMessage, gameServer: GameSe
   } else if (isPlayerExitMessage(message)) {
     console.log('[WebSocket] Player exit received');
     gameServer.handlePlayerExit(ws);
+  } else if ((message as Record<string, unknown>).type === 'matchmaking-start') {
+    const msg = message as Record<string, unknown>;
+    console.log('[WebSocket] Quick match request received');
+    roomManager.quickMatch(ws, (msg.playerId as string) ?? `anon-${Date.now()}`, msg.walletAddress as string | undefined);
+  } else if ((message as Record<string, unknown>).type === 'matchmaking-cancel') {
+    console.log('[WebSocket] Cancel matchmaking received');
+    roomManager.cancelMatchmaking(ws);
   }
 }
 
