@@ -1,0 +1,10 @@
+[package]
+name = "chaos_puck"
+version = "0.0.1"
+edition = "2024.beta"
+
+[dependencies]
+One = { git = "https://github.com/one-chain-labs/onechain.git", subdir = "crates/sui-framework/packages/one-framework", rev = "main" }
+
+[addresses]
+chaos_puck = "0x0"
