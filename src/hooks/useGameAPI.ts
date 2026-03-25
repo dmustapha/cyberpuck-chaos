@@ -8,7 +8,6 @@
  */
 
 import { useCallback, useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
 import { gameAPI, Game as APIGame } from '@/lib/api/game-api';
 
 // ============================================================================
@@ -92,7 +91,7 @@ export function useGameAPI(): UseGameAPIReturn {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isServerReady, setIsServerReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { address, isConnected } = useAccount();
+  const isConnected = false; // Stub — will use OneChain wallet in Phase 4
 
   // Check server health on mount
   useEffect(() => {

@@ -4,8 +4,6 @@ import { useGameStore } from '@/stores/gameStore';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
-import { shareGameResult } from '@/lib/farcaster';
-import { useFarcaster } from '@/providers/FarcasterProvider';
 
 export function GameOverModal() {
   const router = useRouter();
@@ -15,7 +13,6 @@ export function GameOverModal() {
   const mode = useGameStore((state) => state.mode);
   const resetGame = useGameStore((state) => state.resetGame);
   const startGame = useGameStore((state) => state.startGame);
-  const { isInMiniApp, isReady } = useFarcaster();
 
   const isOpen = status === 'gameover';
   const playerWon = winner === 'player1';
@@ -29,13 +26,6 @@ export function GameOverModal() {
     router.push('/');
   };
 
-  const handleShare = () => {
-    const resultText = playerWon
-      ? `Just won ${scores.player1}-${scores.player2} in Cyber Air Hockey!`
-      : `Lost ${scores.player1}-${scores.player2} in Cyber Air Hockey. Rematch?`;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://air-hockey-base.vercel.app';
-    shareGameResult(resultText, appUrl);
-  };
 
   return (
     <Modal isOpen={isOpen}>
@@ -65,11 +55,6 @@ export function GameOverModal() {
           <Button onClick={handlePlayAgain} variant="primary" size="lg">
             Play Again
           </Button>
-          {isInMiniApp && isReady && (
-            <Button onClick={handleShare} variant="primary" size="md">
-              Share to Farcaster
-            </Button>
-          )}
           <Button onClick={handleMainMenu} variant="secondary" size="md">
             Main Menu
           </Button>

@@ -156,7 +156,7 @@ app.get('/api/games', (_req: Request, res: Response, next: NextFunction) => {
 // Get game by ID or room code
 app.get('/api/games/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const idOrCode = req.params.id;
+    const idOrCode = req.params.id as string;
 
     // Try by ID first
     let game = games.get(idOrCode);
@@ -180,7 +180,7 @@ app.get('/api/games/:id', (req: Request, res: Response, next: NextFunction) => {
 // Join a game (accepts gameId or roomCode)
 app.post('/api/games/:id/join', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const idOrCode = req.params.id;
+    const idOrCode = req.params.id as string;
 
     let game = games.get(idOrCode);
     if (!game) {
@@ -209,7 +209,7 @@ app.post('/api/games/:id/join', (req: Request, res: Response, next: NextFunction
 // Submit game result
 app.post('/api/games/:id/result', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const gameId = req.params.id;
+    const gameId = req.params.id as string;
     const { player1Score, player2Score } = req.body;
 
     if (typeof player1Score !== 'number' || typeof player2Score !== 'number') {
@@ -243,7 +243,7 @@ app.post('/api/games/:id/result', (req: Request, res: Response, next: NextFuncti
 // Cancel a game
 app.post('/api/games/:id/cancel', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const gameId = req.params.id;
+    const gameId = req.params.id as string;
 
     const game = games.get(gameId);
     if (!game) {
