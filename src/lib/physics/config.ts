@@ -17,8 +17,8 @@ export const PHYSICS_CONFIG: PhysicsConfig = {
     mass: 0.1,
     restitution: 0.92,  // Less bouncy — 8% energy loss per bounce (was 2%)
     friction: 0,
-    frictionAir: 0.002,  // Meaningful deceleration so ball doesn't fly endlessly
-    maxSpeed: 18,         // Controllable on mobile (was 25)
+    frictionAir: 0.004,  // Higher drag — puck decelerates faster for casual play
+    maxSpeed: 14,         // Easier to track and react (was 18)
   },
 
   paddle: {

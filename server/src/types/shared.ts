@@ -101,10 +101,10 @@ export function getChaosThresholds(maxScore: number): [number, number] {
 
 export const CHAOS_TIMING = {
   firstObserveDelay: 5_000,     // 5s before first modifier
-  baseInterval: 5_000,          // 5s normal pace
-  mediumInterval: 3_500,        // 3.5s getting intense
-  fastInterval: 2_000,          // 2s endgame frenzy
-  modifierDuration: 6_000,      // 6s per modifier
+  baseInterval: 17_000,         // 10s active + 7s interval gap (~10s felt with LLM)
+  mediumInterval: 14_000,       // 10s active + 4s interval gap (~7s felt with LLM)
+  fastInterval: 11_000,         // 10s active + 1s interval gap (~4s felt with LLM)
+  modifierDuration: 10_000,     // 10s per modifier
   maxActiveModifiers: 1,
   llmTimeoutMs: 8_000,
 } as const;
@@ -129,7 +129,6 @@ export const MODIFIER_FALLBACK_POOL: Array<{
   { type: 'paddle_size', variation: 'shrink', target: 'player2', reason: 'Paddle shrunk! Time to attack!' },
   { type: 'puck_size', variation: 'grow', target: 'puck', reason: 'Giant puck incoming!' },
   { type: 'invisible_puck', variation: 'hidden', target: 'puck', reason: 'Ghost puck! Where did it go?!' },
-  { type: 'puck_speed', variation: 'slow', target: 'puck', reason: 'Slow motion activated!' },
   { type: 'puck_size', variation: 'shrink', target: 'puck', reason: 'Tiny puck! Precision mode!' },
   { type: 'paddle_size', variation: 'grow', target: 'player1', reason: 'Paddle powered up!' },
 ];
@@ -143,7 +142,6 @@ export const MODIFIER_DEFS: Record<string, {
   duration: number;
 }> = {
   puck_speed_boost:  { type: 'puck_speed',     variation: 'boost',  intensity: 1.5, duration: 7_000 },
-  puck_speed_slow:   { type: 'puck_speed',     variation: 'slow',   intensity: 0.5, duration: 7_000 },
   paddle_shrink:     { type: 'paddle_size',    variation: 'shrink', intensity: 0.6, duration: 8_000 },
   paddle_grow:       { type: 'paddle_size',    variation: 'grow',   intensity: 1.5, duration: 8_000 },
   goal_widen:        { type: 'goal_width',     variation: 'widen',  intensity: 1.3, duration: 6_000 },

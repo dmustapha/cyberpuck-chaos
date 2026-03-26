@@ -10,11 +10,11 @@ import { useGameStore } from '@/stores/gameStore';
 import type { ActiveModifier, ModifierType, ModifierVariation, ModifierTarget } from '../types/game';
 
 // Base interval and score-based ramp
-const BASE_INTERVAL = 5000; // 5s — normal pace
-const MEDIUM_INTERVAL = 3500; // 3.5s — getting intense
-const FAST_INTERVAL = 2000; // 2s — endgame frenzy
+const BASE_INTERVAL = 17000; // 10s active + 7s gap (~10s felt with LLM)
+const MEDIUM_INTERVAL = 14000; // 10s active + 4s gap (~7s felt with LLM)
+const FAST_INTERVAL = 11000; // 10s active + 1s gap (~4s felt with LLM)
 const FIRST_OBSERVE_DELAY = 5000; // 5s before first modifier
-const MODIFIER_DURATION = 6000; // 6s per modifier
+const MODIFIER_DURATION = 10000; // 10s per modifier
 
 const SERVER_URL = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws', '') || 'http://localhost:3001';
 
@@ -48,7 +48,6 @@ const MODIFIER_POOL: Array<{
   { type: 'paddle_size', variation: 'shrink', target: 'player2', reason: 'AI paddle shrunk! Time to attack!' },
   { type: 'puck_size', variation: 'grow', target: 'puck', reason: 'Giant puck incoming!' },
   { type: 'invisible_puck', variation: 'hidden', target: 'puck', reason: 'Ghost puck! Where did it go?!' },
-  { type: 'puck_speed', variation: 'slow', target: 'puck', reason: 'Slow motion activated!' },
   { type: 'puck_size', variation: 'shrink', target: 'puck', reason: 'Tiny puck! Precision mode!' },
   { type: 'paddle_size', variation: 'grow', target: 'player1', reason: 'Your paddle powered up!' },
 ];

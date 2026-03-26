@@ -65,18 +65,20 @@ export function applyModifier(
   switch (modifier.type) {
     case 'puck_speed': {
       if (modifier.variation === 'boost') {
-        newState.activeMaxSpeed = puckConfig.maxSpeed * 1.5;
-        // Scale current velocity up
+        newState.activeMaxSpeed = puckConfig.maxSpeed * 2.5;
+        // Reduce air friction so puck sustains high speed
+        bodies.puck.frictionAir = puckConfig.frictionAir * 0.25;
+        // Scale current velocity up — big kick
         const speed = Math.sqrt(bodies.puck.velocity.x ** 2 + bodies.puck.velocity.y ** 2);
         if (speed > 0.5) {
-          const scale = Math.min(newState.activeMaxSpeed / speed, 1.5);
+          const scale = Math.min(newState.activeMaxSpeed / speed, 2.5);
           Body.setVelocity(bodies.puck, {
             x: bodies.puck.velocity.x * scale,
             y: bodies.puck.velocity.y * scale,
           });
         }
       } else {
-        newState.activeMaxSpeed = puckConfig.maxSpeed * 0.5;
+        newState.activeMaxSpeed = puckConfig.maxSpeed * 0.35;
         // Scale current velocity down
         const speed = Math.sqrt(bodies.puck.velocity.x ** 2 + bodies.puck.velocity.y ** 2);
         if (speed > newState.activeMaxSpeed) {
@@ -127,6 +129,9 @@ export function revertModifier(
   bodies: Bodies,
 ): ModifierState {
   const { puck: puckConfig, paddle: paddleConfig } = PHYSICS_CONFIG;
+
+  // Restore puck frictionAir (may have been modified by speed boost)
+  bodies.puck.frictionAir = puckConfig.frictionAir;
 
   // Only hard-reset bodies that were actually modified (avoids unnecessary vertex swaps)
   if (state.trueRadii.puck !== puckConfig.radius) {
