@@ -1,35 +1,56 @@
 // File: src/hooks/useLocalChaos.ts
 // Client-side chaos agent for AI mode.
-// Tries the server's /api/chaos/observe endpoint for LLM decisions,
-// falls back to a local modifier pool to guarantee chaos always fires.
+// Fixed interval from game start, ramps based on score thresholds.
+// LLM decides WHAT modifier + WHO to target. Always deploys, never skips.
+// Tracks recent modifiers to avoid repeats.
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import type { ActiveModifier, ModifierType, ModifierVariation, ModifierTarget } from '../types/game';
 
-// Timing constants
-const FIRST_OBSERVE_DELAY = 5000;
-const OBSERVE_INTERVAL = 12000;
-const MODIFIER_DURATION = 8000;
+// Base interval and score-based ramp
+const BASE_INTERVAL = 5000; // 5s — normal pace
+const MEDIUM_INTERVAL = 3500; // 3.5s — getting intense
+const FAST_INTERVAL = 2000; // 2s — endgame frenzy
+const FIRST_OBSERVE_DELAY = 5000; // 5s before first modifier
+const MODIFIER_DURATION = 6000; // 6s per modifier
+
 const SERVER_URL = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws', '') || 'http://localhost:3001';
 
-// Local modifier pool — cycles through these when LLM returns skip
+// Score thresholds per maxScore setting
+// [mediumThreshold, fastThreshold] — when highest score reaches these, interval ramps
+function getThresholds(maxScore: number): [number, number] {
+  switch (maxScore) {
+    case 5: return [3, 4];
+    case 7: return [4, 5];
+    case 10: return [6, 8];
+    default: return [Math.ceil(maxScore * 0.57), Math.ceil(maxScore * 0.71)];
+  }
+}
+
+function getInterval(highScore: number, maxScore: number): number {
+  const [medium, fast] = getThresholds(maxScore);
+  if (highScore >= fast) return FAST_INTERVAL;
+  if (highScore >= medium) return MEDIUM_INTERVAL;
+  return BASE_INTERVAL;
+}
+
+// Local fallback pool — used when server is unreachable
+// Balanced: 2 each of puck_speed, paddle_size, puck_size + 1 invisible_puck = 7 entries
 const MODIFIER_POOL: Array<{
   type: ModifierType;
   variation: ModifierVariation;
   target: ModifierTarget;
   reason: string;
 }> = [
-  { type: 'paddle_size', variation: 'shrink', target: 'player2', reason: 'AI paddle shrunk! Time to attack!' },
   { type: 'puck_speed', variation: 'boost', target: 'puck', reason: 'TURBO MODE! Puck is blazing fast!' },
-  { type: 'puck_size', variation: 'grow', target: 'puck', reason: 'Giant puck incoming! Harder to miss!' },
-  { type: 'paddle_size', variation: 'grow', target: 'player1', reason: 'Your paddle just grew! Big advantage!' },
-  { type: 'puck_speed', variation: 'slow', target: 'puck', reason: 'Slow motion! Every move counts!' },
-  { type: 'invisible_puck', variation: 'hidden', target: 'puck', reason: 'Ghost puck! Can you track it?' },
-  { type: 'puck_size', variation: 'shrink', target: 'puck', reason: 'Tiny puck! Precision mode activated!' },
-  { type: 'paddle_size', variation: 'shrink', target: 'player1', reason: 'Your paddle shrunk! Defend carefully!' },
-  { type: 'paddle_size', variation: 'grow', target: 'player2', reason: 'AI paddle grew! Watch out!' },
+  { type: 'paddle_size', variation: 'shrink', target: 'player2', reason: 'AI paddle shrunk! Time to attack!' },
+  { type: 'puck_size', variation: 'grow', target: 'puck', reason: 'Giant puck incoming!' },
+  { type: 'invisible_puck', variation: 'hidden', target: 'puck', reason: 'Ghost puck! Where did it go?!' },
+  { type: 'puck_speed', variation: 'slow', target: 'puck', reason: 'Slow motion activated!' },
+  { type: 'puck_size', variation: 'shrink', target: 'puck', reason: 'Tiny puck! Precision mode!' },
+  { type: 'paddle_size', variation: 'grow', target: 'player1', reason: 'Your paddle powered up!' },
 ];
 
 interface UseLocalChaosOptions {
@@ -39,7 +60,6 @@ interface UseLocalChaosOptions {
 export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
   const [activeModifier, setActiveModifier] = useState<ActiveModifier | null>(null);
 
-  // All mutable state in a single ref object to avoid stale closures
   const stateRef = useRef({
     timer: null as ReturnType<typeof setTimeout> | null,
     expireTimer: null as ReturnType<typeof setTimeout> | null,
@@ -49,19 +69,28 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
     hasStarted: false,
     mounted: true,
     poolIndex: Math.floor(Math.random() * MODIFIER_POOL.length),
-    skipCount: 0,
+    recentTypes: [] as string[], // last 3 modifier types for anti-repeat
   });
 
-  // Keep enabled in sync
   stateRef.current.enabled = enabled;
 
   useEffect(() => {
     const s = stateRef.current;
     s.mounted = true;
 
+    const getMatchTime = () => Math.floor((Date.now() - s.matchStart) / 1000);
+
     const reschedule = () => {
       if (!s.mounted) return;
-      s.timer = setTimeout(() => observe(), OBSERVE_INTERVAL);
+      const { scores, maxScore } = useGameStore.getState();
+      const highScore = Math.max(scores.player1, scores.player2);
+      const interval = getInterval(highScore, maxScore);
+      s.timer = setTimeout(() => observe(), interval);
+    };
+
+    const trackRecent = (type: string) => {
+      s.recentTypes.push(type);
+      if (s.recentTypes.length > 3) s.recentTypes.shift();
     };
 
     const deployModifier = (mod: {
@@ -71,6 +100,8 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
       reason: string;
     }) => {
       if (!s.mounted) return;
+
+      trackRecent(mod.type);
 
       const now = Date.now();
       const modifier: ActiveModifier = {
@@ -96,7 +127,14 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
     };
 
     const deployFromPool = () => {
-      const mod = MODIFIER_POOL[s.poolIndex % MODIFIER_POOL.length];
+      // Pick from pool, skipping recent types
+      let attempts = 0;
+      let mod = MODIFIER_POOL[s.poolIndex % MODIFIER_POOL.length];
+      while (s.recentTypes.includes(mod.type) && attempts < MODIFIER_POOL.length) {
+        s.poolIndex++;
+        mod = MODIFIER_POOL[s.poolIndex % MODIFIER_POOL.length];
+        attempts++;
+      }
       s.poolIndex++;
       deployModifier(mod);
     };
@@ -109,18 +147,17 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
         return;
       }
 
-      const scores = useGameStore.getState().scores;
-      const matchTimeSeconds = Math.floor((Date.now() - s.matchStart) / 1000);
+      const { scores, maxScore } = useGameStore.getState();
+      const matchTimeSec = getMatchTime();
+      const highScore = Math.max(scores.player1, scores.player2);
+      const phase = highScore >= maxScore - 2 ? 'late' : highScore >= Math.ceil(maxScore * 0.4) ? 'mid' : 'early';
 
       const input = {
         score: [scores.player1, scores.player2],
-        streaks: [0, 0],
-        paddleActivity: [0.7, 0.3],
-        puckAvgSpeed: 7,
-        matchPhase: matchTimeSeconds < 15 ? 'early' : matchTimeSeconds < 60 ? 'mid' : 'late',
-        recentModifiers: [],
-        matchTimeSeconds: Math.max(matchTimeSeconds, 16),
-        matchDurationLimit: 180,
+        matchPhase: phase,
+        recentModifiers: [...s.recentTypes],
+        matchTimeSeconds: matchTimeSec,
+        maxScore,
       };
 
       fetch(`${SERVER_URL}/api/chaos/observe`, {
@@ -135,7 +172,6 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
         .then((data) => {
           if (!s.mounted) return;
           if (data.action === 'deploy_modifier' && data.modifier) {
-            s.skipCount = 0;
             deployModifier({
               type: data.modifier.type,
               variation: data.modifier.variation,
@@ -143,11 +179,8 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
               reason: data.modifier.reason || 'Chaos agent strikes!',
             });
           } else {
-            s.skipCount++;
-            if (s.skipCount >= 2) {
-              s.skipCount = 0;
-              deployFromPool();
-            }
+            // LLM returned skip despite prompt — force from pool
+            deployFromPool();
           }
         })
         .catch(() => {
@@ -159,12 +192,12 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
         });
     };
 
-    // Start chain when enabled becomes true for the first time
     if (enabled && !s.hasStarted) {
       s.hasStarted = true;
       s.matchStart = Date.now();
       s.modifierActive = false;
-      s.skipCount = 0;
+      s.recentTypes = [];
+      s.poolIndex = Math.floor(Math.random() * MODIFIER_POOL.length);
       s.timer = setTimeout(() => observe(), FIRST_OBSERVE_DELAY);
     }
 

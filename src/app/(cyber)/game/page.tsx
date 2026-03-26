@@ -393,14 +393,22 @@ export default function CyberGamePage() {
                   ref={gameCanvasRef}
                   getBodies={getBodies}
                   getEffectiveRadii={!isInMultiplayerGameplay ? aiEngine.getEffectiveRadii ?? undefined : undefined}
-                  activeModifierType={!isInMultiplayerGameplay ? localChaosModifier?.type ?? null : null}
+                  activeModifierType={
+                    isInMultiplayerGameplay
+                      ? multiplayerEngine.activeModifier?.type ?? null
+                      : localChaosModifier?.type ?? null
+                  }
                   isPuckFrozen={!isInMultiplayerGameplay ? aiEngine.isPuckFrozen : undefined}
                 />
 
-                {/* Chaos modifier HUD (AI mode) */}
-                {!isInMultiplayerGameplay && (
-                  <ModifierHUD modifier={localChaosModifier} />
-                )}
+                {/* Chaos modifier HUD (both AI and multiplayer) */}
+                <ModifierHUD
+                  modifier={
+                    isInMultiplayerGameplay
+                      ? multiplayerEngine.activeModifier ?? null
+                      : localChaosModifier
+                  }
+                />
 
                 {/* Multiplayer pause overlay */}
                 {isInMultiplayerGameplay && (

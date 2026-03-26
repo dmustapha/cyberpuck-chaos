@@ -56,13 +56,10 @@ export interface ModifierExpiredMessage {
 
 export interface ChaosInput {
   score: [number, number];
-  streaks: [number, number];
-  paddleActivity: [number, number];
-  puckAvgSpeed: number;
   matchPhase: 'early' | 'mid' | 'late';
-  recentModifiers: Array<{ type: string; timestamp: number }>;
+  recentModifiers: string[];
   matchTimeSeconds: number;
-  matchDurationLimit: number;
+  maxScore: number;
 }
 
 export interface ModifierDecisionResult {
@@ -92,18 +89,50 @@ export const PHYSICS_CONFIG = {
 
 // === Chaos Agent Timing ===
 
+// Score-based ramp thresholds: [mediumThreshold, fastThreshold]
+export function getChaosThresholds(maxScore: number): [number, number] {
+  switch (maxScore) {
+    case 5: return [3, 4];
+    case 7: return [4, 5];
+    case 10: return [6, 8];
+    default: return [Math.ceil(maxScore * 0.57), Math.ceil(maxScore * 0.71)];
+  }
+}
+
 export const CHAOS_TIMING = {
-  firstModifierMinDelay: 10_000,
-  firstModifierMaxDelay: 20_000,
-  intervalMin: 10_000,
-  intervalMax: 15_000,
-  cooldownMin: 10_000,
-  cooldownMax: 15_000,
-  noModifierStartMs: 10_000,
-  noModifierEndMs: 5_000,
+  firstObserveDelay: 5_000,     // 5s before first modifier
+  baseInterval: 5_000,          // 5s normal pace
+  mediumInterval: 3_500,        // 3.5s getting intense
+  fastInterval: 2_000,          // 2s endgame frenzy
+  modifierDuration: 6_000,      // 6s per modifier
   maxActiveModifiers: 1,
-  llmTimeoutMs: 2_000,
+  llmTimeoutMs: 8_000,
 } as const;
+
+export function getChaosInterval(highScore: number, maxScore: number): number {
+  const [medium, fast] = getChaosThresholds(maxScore);
+  if (highScore >= fast) return CHAOS_TIMING.fastInterval;
+  if (highScore >= medium) return CHAOS_TIMING.mediumInterval;
+  return CHAOS_TIMING.baseInterval;
+}
+
+// Local fallback pool — used when LLM is unreachable or returns null
+// Balanced: 2 each of puck_speed, paddle_size, puck_size + 1 invisible_puck = 7 entries
+// Anti-repeat tracks by TYPE so each type appears at most once per 3 observations
+export const MODIFIER_FALLBACK_POOL: Array<{
+  type: ModifierType;
+  variation: ModifierVariation;
+  target: ModifierTarget;
+  reason: string;
+}> = [
+  { type: 'puck_speed', variation: 'boost', target: 'puck', reason: 'TURBO MODE! Puck is blazing fast!' },
+  { type: 'paddle_size', variation: 'shrink', target: 'player2', reason: 'Paddle shrunk! Time to attack!' },
+  { type: 'puck_size', variation: 'grow', target: 'puck', reason: 'Giant puck incoming!' },
+  { type: 'invisible_puck', variation: 'hidden', target: 'puck', reason: 'Ghost puck! Where did it go?!' },
+  { type: 'puck_speed', variation: 'slow', target: 'puck', reason: 'Slow motion activated!' },
+  { type: 'puck_size', variation: 'shrink', target: 'puck', reason: 'Tiny puck! Precision mode!' },
+  { type: 'paddle_size', variation: 'grow', target: 'player1', reason: 'Paddle powered up!' },
+];
 
 // === Modifier Definitions ===
 

@@ -13,8 +13,6 @@ export class GameServer {
   private chaosPerRoom = new Map<string, ChaosMiddleware>();
   private onChain: OnChainService;
   private matchStartTimes = new Map<string, number>();
-  private goalStreaks = new Map<string, [number, number]>();
-  private paddleActivitySamples = new Map<string, [number[], number[]]>();
 
   constructor(onChain: OnChainService) {
     this.onChain = onChain;
@@ -572,25 +570,12 @@ export class GameServer {
     this.chaosPerRoom.set(gameId, chaos);
     const matchStartTime = Date.now();
     this.matchStartTimes.set(gameId, matchStartTime);
-    this.goalStreaks.set(gameId, [0, 0]);
-    this.paddleActivitySamples.set(gameId, [[], []]);
     chaos.onMatchStart(matchStartTime);
 
     // Register goal callback
     physics.onGoal((scorer) => {
       const state = physics.getState();
       roomManager.broadcast(gameId, { type: 'goal', scorer, newScore: state.score });
-
-      // === Chaos Agent: track goal streaks ===
-      const streaks = this.goalStreaks.get(gameId) ?? [0, 0];
-      if (scorer === 1) {
-        streaks[0]++;
-        streaks[1] = 0;
-      } else {
-        streaks[1]++;
-        streaks[0] = 0;
-      }
-      this.goalStreaks.set(gameId, streaks);
 
       // Check for game over
       if (state.score.player1 >= PHYSICS_CONFIG.game.maxScore) {
@@ -649,33 +634,23 @@ export class GameServer {
   private buildChaosInput(gameId: string, state: ReturnType<PhysicsEngine['getState']>): ChaosInput {
     const matchStart = this.matchStartTimes.get(gameId) ?? Date.now();
     const elapsed = (Date.now() - matchStart) / 1000;
-    const totalDuration = 300; // 5 min max match
-    const puckSpeed = Math.sqrt(state.puck.vx ** 2 + state.puck.vy ** 2);
+    const maxScore = PHYSICS_CONFIG.game.maxScore;
+    const highScore = Math.max(state.score.player1, state.score.player2);
 
-    let matchPhase: 'early' | 'mid' | 'late';
-    if (elapsed < 30) matchPhase = 'early';
-    else if (elapsed < totalDuration * 0.7) matchPhase = 'mid';
-    else matchPhase = 'late';
+    const matchPhase: 'early' | 'mid' | 'late' =
+      highScore >= maxScore - 2 ? 'late' :
+      highScore >= Math.ceil(maxScore * 0.4) ? 'mid' : 'early';
 
-    const samples = this.paddleActivitySamples.get(gameId) ?? [[], []];
-    const p1Activity = samples[0].length > 0
-      ? samples[0].reduce((a, b) => a + b, 0) / samples[0].length
-      : 50;
-    const p2Activity = samples[1].length > 0
-      ? samples[1].reduce((a, b) => a + b, 0) / samples[1].length
-      : 50;
-
-    const streaks = this.goalStreaks.get(gameId) ?? [0, 0];
+    // Get recent modifier types from chaos middleware
+    const chaos = this.chaosPerRoom.get(gameId);
+    const recentModifiers = chaos?.getRecentTypes() ?? [];
 
     return {
       score: [state.score.player1, state.score.player2],
-      streaks: streaks as [number, number],
-      paddleActivity: [Math.min(100, p1Activity), Math.min(100, p2Activity)],
-      puckAvgSpeed: puckSpeed,
       matchPhase,
-      recentModifiers: [],
+      recentModifiers,
       matchTimeSeconds: Math.floor(elapsed),
-      matchDurationLimit: totalDuration,
+      maxScore,
     };
   }
 
@@ -742,8 +717,6 @@ export class GameServer {
       // Clean up chaos state
       this.chaosPerRoom.delete(gameId);
       this.matchStartTimes.delete(gameId);
-      this.goalStreaks.delete(gameId);
-      this.paddleActivitySamples.delete(gameId);
     }
 
     // Clean up state locks

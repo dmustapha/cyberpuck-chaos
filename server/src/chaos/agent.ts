@@ -1,14 +1,22 @@
 // File: server/src/chaos/agent.ts
-// Copied from ARCHITECTURE.md Section 5 (lines 783-894)
+// Multiplayer chaos agent — ALWAYS deploys a modifier, never skips.
+// Score-based frequency ramp matching AI-mode useLocalChaos.ts.
+// Tracks recent modifiers to avoid repeats. Local fallback when LLM fails.
+
 import { analyzeMatchSkill } from './skills';
-import { CHAOS_TIMING } from '../types/shared';
-import type { ChaosInput, ModifierDecisionResult } from '../types/shared';
+import {
+  CHAOS_TIMING,
+  getChaosInterval,
+  MODIFIER_FALLBACK_POOL,
+} from '../types/shared';
+import type { ChaosInput, ModifierDecisionResult, ModifierType, ModifierVariation, ModifierTarget } from '../types/shared';
 
 export class ChaosAgent {
   private matchStartTime = 0;
-  private lastModifierEndTime = 0;
   private active = false;
   private nextObserveTime = 0;
+  private recentTypes: string[] = []; // last 3 modifier types for anti-repeat
+  private poolIndex = 0;
   private decisionLog: Array<{
     timestamp: number;
     decision: ModifierDecisionResult;
@@ -17,16 +25,11 @@ export class ChaosAgent {
   start(matchStartTime: number): void {
     this.matchStartTime = matchStartTime;
     this.active = true;
-    this.lastModifierEndTime = 0;
+    this.recentTypes = [];
+    this.poolIndex = Math.floor(Math.random() * MODIFIER_FALLBACK_POOL.length);
     this.decisionLog = [];
-
-    // Schedule first observation at 10-20s after match start
-    const firstDelay =
-      CHAOS_TIMING.firstModifierMinDelay +
-      Math.random() *
-        (CHAOS_TIMING.firstModifierMaxDelay -
-          CHAOS_TIMING.firstModifierMinDelay);
-    this.nextObserveTime = matchStartTime + firstDelay;
+    // First observation after fixed delay
+    this.nextObserveTime = matchStartTime + CHAOS_TIMING.firstObserveDelay;
   }
 
   stop(): Array<{ timestamp: number; decision: ModifierDecisionResult }> {
@@ -38,47 +41,50 @@ export class ChaosAgent {
     return this.active && now >= this.nextObserveTime;
   }
 
-  async observe(input: ChaosInput): Promise<ModifierDecisionResult | null> {
-    if (!this.active) return null;
+  getRecentTypes(): string[] {
+    return [...this.recentTypes];
+  }
 
-    const now = Date.now();
-    const elapsed = now - this.matchStartTime;
-    const totalMs = input.matchDurationLimit * 1000;
-    const remaining = totalMs - elapsed;
+  private trackRecent(type: string): void {
+    this.recentTypes.push(type);
+    if (this.recentTypes.length > 3) this.recentTypes.shift();
+  }
 
-    // Guard: no modifier in first 10s
-    if (elapsed < CHAOS_TIMING.noModifierStartMs) {
-      this.scheduleNext(now);
-      return null;
+  private pickFromPool(): { type: ModifierType; variation: ModifierVariation; target: ModifierTarget; reason: string } {
+    let attempts = 0;
+    let mod = MODIFIER_FALLBACK_POOL[this.poolIndex % MODIFIER_FALLBACK_POOL.length];
+    while (this.recentTypes.includes(mod.type) && attempts < MODIFIER_FALLBACK_POOL.length) {
+      this.poolIndex++;
+      mod = MODIFIER_FALLBACK_POOL[this.poolIndex % MODIFIER_FALLBACK_POOL.length];
+      attempts++;
     }
+    this.poolIndex++;
+    return mod;
+  }
 
-    // Guard: no modifier in last 5s
-    if (remaining < CHAOS_TIMING.noModifierEndMs) {
-      this.active = false;
-      return null;
-    }
+  private scheduleNext(score: [number, number], maxScore: number): void {
+    const highScore = Math.max(score[0], score[1]);
+    const interval = getChaosInterval(highScore, maxScore);
+    this.nextObserveTime = Date.now() + interval;
+  }
 
-    // Guard: cool-down after previous modifier
-    if (this.lastModifierEndTime > 0) {
-      const cooldown =
-        CHAOS_TIMING.cooldownMin +
-        Math.random() * (CHAOS_TIMING.cooldownMax - CHAOS_TIMING.cooldownMin);
-      if (now - this.lastModifierEndTime < cooldown) {
-        this.scheduleNext(now);
-        return null;
-      }
+  /**
+   * Observe the game and ALWAYS return a modifier decision.
+   * Tries LLM first, falls back to pool on failure or null result.
+   */
+  async observe(input: ChaosInput): Promise<ModifierDecisionResult> {
+    if (!this.active) {
+      return this.fallbackDecision(input.score, input.maxScore);
     }
 
     try {
       const resultStr = await Promise.race([
         analyzeMatchSkill.execute({
           score: input.score,
-          streaks: input.streaks,
-          paddleActivity: input.paddleActivity,
-          puckAvgSpeed: input.puckAvgSpeed,
           matchPhase: input.matchPhase,
           recentModifiers: input.recentModifiers,
           matchTimeSeconds: input.matchTimeSeconds,
+          maxScore: input.maxScore,
         }),
         new Promise<string>((_, reject) =>
           setTimeout(
@@ -89,24 +95,42 @@ export class ChaosAgent {
       ]);
 
       const decision: ModifierDecisionResult = JSON.parse(resultStr);
-      this.decisionLog.push({ timestamp: now, decision });
-      this.scheduleNext(now);
-      return decision;
+      this.decisionLog.push({ timestamp: Date.now(), decision });
+
+      // If LLM returned a valid modifier, use it
+      if (decision?.action === 'deploy_modifier' && decision.modifier) {
+        this.trackRecent(decision.modifier.type);
+        this.scheduleNext(input.score, input.maxScore);
+        return decision;
+      }
+
+      // LLM returned skip or null modifier — force from pool
+      return this.fallbackDecision(input.score, input.maxScore);
     } catch (err) {
       console.error('[ChaosAgent] observe failed:', err);
-      this.scheduleNext(now);
-      return null;
+      return this.fallbackDecision(input.score, input.maxScore);
     }
   }
 
-  onModifierExpired(): void {
-    this.lastModifierEndTime = Date.now();
+  private fallbackDecision(score: [number, number], maxScore: number): ModifierDecisionResult {
+    const mod = this.pickFromPool();
+    this.trackRecent(mod.type);
+    this.scheduleNext(score, maxScore);
+
+    const decision: ModifierDecisionResult = {
+      action: 'deploy_modifier',
+      modifier: {
+        type: mod.type,
+        variation: mod.variation,
+        target: mod.target,
+        reason: mod.reason,
+      },
+    };
+    this.decisionLog.push({ timestamp: Date.now(), decision });
+    return decision;
   }
 
-  private scheduleNext(now: number): void {
-    const interval =
-      CHAOS_TIMING.intervalMin +
-      Math.random() * (CHAOS_TIMING.intervalMax - CHAOS_TIMING.intervalMin);
-    this.nextObserveTime = now + interval;
+  onModifierExpired(): void {
+    // No-op — scheduling is handled in observe/fallback
   }
 }

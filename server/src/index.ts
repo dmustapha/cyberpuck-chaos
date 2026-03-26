@@ -278,6 +278,66 @@ setInterval(() => {
 // Error Handling Middleware
 // ============================================
 
+// ============================================
+// Chaos Agent REST Endpoint (for AI mode)
+// ============================================
+// Client sends game state, server runs LLM and returns modifier decision.
+// This lets AI-mode games use the same Anthropic-powered chaos agent.
+
+import { analyzeMatchSkill } from './chaos/skills';
+import type { ChaosInput, ModifierDecisionResult } from './types/shared';
+
+app.post('/api/chaos/observe', async (req: Request, res: Response) => {
+  try {
+    const input = req.body as ChaosInput;
+
+    // Validate required fields
+    if (!input.score || !input.matchPhase) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
+
+    // Call the LLM skill — always returns a modifier (never skip)
+    const resultStr = await Promise.race([
+      analyzeMatchSkill.execute({
+        score: input.score,
+        matchPhase: input.matchPhase,
+        recentModifiers: input.recentModifiers,
+        matchTimeSeconds: input.matchTimeSeconds,
+        maxScore: input.maxScore ?? 7,
+      }),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error('LLM timeout')), 8000),
+      ),
+    ]);
+
+    const decision: ModifierDecisionResult = JSON.parse(resultStr);
+
+    if (decision?.action === 'deploy_modifier' && decision.modifier) {
+      const now = Date.now();
+      const duration = 8000; // 8s default
+      res.json({
+        action: 'deploy_modifier',
+        modifier: {
+          id: `ai-chaos-${now}`,
+          type: decision.modifier.type,
+          variation: decision.modifier.variation,
+          target: decision.modifier.target,
+          reason: decision.modifier.reason,
+          duration,
+          startTime: now,
+          expiresAt: now + duration,
+        },
+      });
+    } else {
+      res.json({ action: 'skip', modifier: null });
+    }
+  } catch (err) {
+    console.error('[ChaosAPI] observe failed:', err);
+    res.status(500).json({ error: 'Chaos observation failed' });
+  }
+});
+
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error(`[Server] Error: ${err.message}`);
   console.error(err.stack);

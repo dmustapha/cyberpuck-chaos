@@ -24,6 +24,10 @@ export class ChaosMiddleware {
     return this.executor.current;
   }
 
+  getRecentTypes(): string[] {
+    return this.agent.getRecentTypes();
+  }
+
   onMatchStart(matchStartTime: number): void {
     this.agent.start(matchStartTime);
     this.executor.reset();
