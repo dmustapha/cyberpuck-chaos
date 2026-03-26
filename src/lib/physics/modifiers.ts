@@ -6,7 +6,22 @@ import Matter from 'matter-js';
 import { PHYSICS_CONFIG } from './config';
 import type { ActiveModifier } from '@/types/game';
 
-const { Body } = Matter;
+const { Body, Bodies } = Matter;
+
+/**
+ * Hard-reset a circle body to an exact radius.
+ * Body.scale() accumulates floating-point drift, so after revert
+ * the collision shape may not match the intended size.
+ * This replaces the body's vertices with a fresh circle of the target radius.
+ */
+function hardResetCircle(body: Matter.Body, targetRadius: number): void {
+  const fresh = Bodies.circle(body.position.x, body.position.y, targetRadius);
+  Body.set(body, {
+    vertices: fresh.vertices,
+    bounds: fresh.bounds,
+  } as any);
+  (body as any).circleRadius = targetRadius;
+}
 
 export interface ModifierState {
   trueRadii: { puck: number; paddle1: number; paddle2: number };
@@ -113,25 +128,15 @@ export function revertModifier(
 ): ModifierState {
   const { puck: puckConfig, paddle: paddleConfig } = PHYSICS_CONFIG;
 
-  // Revert puck size
+  // Only hard-reset bodies that were actually modified (avoids unnecessary vertex swaps)
   if (state.trueRadii.puck !== puckConfig.radius) {
-    const scaleFactor = puckConfig.radius / state.trueRadii.puck;
-    Body.scale(bodies.puck, scaleFactor, scaleFactor);
-    (bodies.puck as any).circleRadius = puckConfig.radius;
+    hardResetCircle(bodies.puck, puckConfig.radius);
   }
-
-  // Revert paddle1 size
   if (state.trueRadii.paddle1 !== paddleConfig.radius) {
-    const scaleFactor = paddleConfig.radius / state.trueRadii.paddle1;
-    Body.scale(bodies.paddle1, scaleFactor, scaleFactor);
-    (bodies.paddle1 as any).circleRadius = paddleConfig.radius;
+    hardResetCircle(bodies.paddle1, paddleConfig.radius);
   }
-
-  // Revert paddle2 size
   if (state.trueRadii.paddle2 !== paddleConfig.radius) {
-    const scaleFactor = paddleConfig.radius / state.trueRadii.paddle2;
-    Body.scale(bodies.paddle2, scaleFactor, scaleFactor);
-    (bodies.paddle2 as any).circleRadius = paddleConfig.radius;
+    hardResetCircle(bodies.paddle2, paddleConfig.radius);
   }
 
   return createModifierState();

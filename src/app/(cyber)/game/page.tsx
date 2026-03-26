@@ -198,7 +198,8 @@ export default function CyberGamePage() {
   // ============================================================================
   // AI Mode: Local Chaos Agent (LLM modifier system)
   // ============================================================================
-  const isAIPlaying = status === 'playing' && mode === 'ai' && !isInMultiplayerGameplay;
+  // Keep chaos running through goals — modifiers expire on their own timer, not on goal
+  const isAIPlaying = (status === 'playing' || status === 'goal') && mode === 'ai' && !isInMultiplayerGameplay;
   const localChaosModifier = useLocalChaos({ enabled: isAIPlaying });
 
   // Destructure stable refs so the effect doesn't re-fire on every render

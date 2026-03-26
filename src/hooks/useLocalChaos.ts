@@ -101,6 +101,9 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
     }) => {
       if (!s.mounted) return;
 
+      // Clear any existing expire timer to prevent it killing this new modifier
+      if (s.expireTimer) { clearTimeout(s.expireTimer); s.expireTimer = null; }
+
       trackRecent(mod.type);
 
       const now = Date.now();
@@ -205,6 +208,7 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
       s.mounted = false;
       if (s.timer) { clearTimeout(s.timer); s.timer = null; }
       if (s.expireTimer) { clearTimeout(s.expireTimer); s.expireTimer = null; }
+      setActiveModifier(null);
       s.hasStarted = false;
       s.matchStart = 0;
       s.modifierActive = false;
