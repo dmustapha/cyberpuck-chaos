@@ -30,6 +30,8 @@ import { useAIOpponent } from '@/hooks/useAIOpponent';
 import { useDynamicWallet } from '@/hooks/useDynamicWallet';
 import { useAudioOptional } from '@/contexts/AudioContext';
 import { GameCanvas, GameCanvasRef } from '@/components/game/GameCanvas';
+import { ModifierHUD } from '@/components/game/ModifierHUD';
+import { useLocalChaos } from '@/hooks/useLocalChaos';
 import {
   GameHUD,
   ScoreOverlay,
@@ -192,6 +194,26 @@ export default function CyberGamePage() {
   // AI Mode: Local Physics Engine
   // ============================================================================
   const aiEngine = useGameEngine();
+
+  // ============================================================================
+  // AI Mode: Local Chaos Agent (LLM modifier system)
+  // ============================================================================
+  const isAIPlaying = status === 'playing' && mode === 'ai' && !isInMultiplayerGameplay;
+  const localChaosModifier = useLocalChaos({ enabled: isAIPlaying });
+
+  // Destructure stable refs so the effect doesn't re-fire on every render
+  // (aiEngine is a new object each render; these useCallback fns are stable)
+  const { applyGameModifier, revertGameModifier } = aiEngine;
+
+  // Apply/revert modifiers when they change (AI mode only)
+  useEffect(() => {
+    if (isInMultiplayerGameplay) return; // Multiplayer handles its own modifiers
+    if (localChaosModifier) {
+      applyGameModifier(localChaosModifier);
+    } else {
+      revertGameModifier();
+    }
+  }, [localChaosModifier, applyGameModifier, revertGameModifier, isInMultiplayerGameplay]);
 
   // ============================================================================
   // Multiplayer Mode: Server-Authoritative Engine
@@ -367,7 +389,18 @@ export default function CyberGamePage() {
 
               {/* Game HUD with canvas */}
               <GameHUD>
-                <GameCanvas ref={gameCanvasRef} getBodies={getBodies} />
+                <GameCanvas
+                  ref={gameCanvasRef}
+                  getBodies={getBodies}
+                  getEffectiveRadii={!isInMultiplayerGameplay ? aiEngine.getEffectiveRadii ?? undefined : undefined}
+                  activeModifierType={!isInMultiplayerGameplay ? localChaosModifier?.type ?? null : null}
+                  isPuckFrozen={!isInMultiplayerGameplay ? aiEngine.isPuckFrozen : undefined}
+                />
+
+                {/* Chaos modifier HUD (AI mode) */}
+                {!isInMultiplayerGameplay && (
+                  <ModifierHUD modifier={localChaosModifier} />
+                )}
 
                 {/* Multiplayer pause overlay */}
                 {isInMultiplayerGameplay && (

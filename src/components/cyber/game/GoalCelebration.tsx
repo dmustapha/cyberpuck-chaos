@@ -4,7 +4,7 @@
  * GoalCelebration - Epic goal scored effect with particles and screen flash
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 
 interface Particle {
@@ -33,10 +33,14 @@ export function GoalCelebration() {
     ? (lastScorer === 'player1' && playerNumber === 1) || (lastScorer === 'player2' && playerNumber === 2)
     : lastScorer === 'player1';
 
-  // Colors based on who scored
-  const colors = isMyGoal
-    ? ['#00ff88', '#00ffcc', '#00ffff', '#88ffcc'] // Green/cyan for player goal
-    : ['#ff0088', '#ff00cc', '#ff44aa', '#ff88cc']; // Pink/magenta for opponent goal
+  // Memoize colors to prevent infinite re-render loop
+  // (new array ref every render → new useCallback → new useEffect → state update → re-render)
+  const colors = useMemo(
+    () => isMyGoal
+      ? ['#00ff88', '#00ffcc', '#00ffff', '#88ffcc']
+      : ['#ff0088', '#ff00cc', '#ff44aa', '#ff88cc'],
+    [isMyGoal]
+  );
 
   const createParticles = useCallback(() => {
     const newParticles: Particle[] = [];

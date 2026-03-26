@@ -1,9 +1,9 @@
 {
   "mode": "resume",
-  "currentPhase": 3,
-  "currentStep": "3.8",
+  "currentPhase": 6,
+  "currentStep": "6.0",
   "startedAt": "2026-03-26T08:00:00Z",
-  "lastUpdated": "2026-03-27T04:00:00Z",
+  "lastUpdated": "2026-03-27T07:15:00Z",
   "planFile": "PLAN.md",
   "archFile": "ARCHITECTURE.md",
   "stackFamily": "Full-Stack Web + Smart Contracts + AI Agent",
@@ -40,6 +40,31 @@
         "3.6": {"status": "complete", "verification": "PASS", "note": "Per-room chaos + proxy pattern"},
         "3.7": {"status": "complete", "verification": "PASS"},
         "3.8": {"status": "complete", "verification": "PASS", "note": "Server starts clean, wallet logged"}
+      }
+    },
+    "4": {
+      "status": "complete",
+      "steps": {
+        "4.1": {"status": "complete", "verification": "PASS", "note": "SuiClientProvider + WalletProvider in providers.tsx"},
+        "4.2": {"status": "complete", "verification": "PASS", "note": "onechain/config.ts + WalletConnect.tsx"},
+        "4.3": {"status": "complete", "verification": "PASS", "note": "usePlayerProfile hook with CRUD"},
+        "4.4": {"status": "complete", "verification": "PASS", "note": "AudioManager singleton + 8 SFX"},
+        "4.5": {"status": "complete", "verification": "PASS", "note": "Modifier types in game.ts"},
+        "4.6": {"status": "complete", "verification": "PASS", "note": "MODIFIER_APPLIED/EXPIRED in MultiplayerContext"},
+        "4.7": {"status": "complete", "verification": "PASS", "note": "activeModifier in useMultiplayerGameEngine"}
+      }
+    },
+    "5": {
+      "status": "complete",
+      "steps": {
+        "5.1": {"status": "complete", "verification": "PASS", "note": "ModifierHUD.tsx — glass morphism overlay"},
+        "5.2": {"status": "complete", "verification": "PASS", "note": "ModifierEffects.ts — speed lines, size glow, invisibility, active glow"},
+        "5.3": {"status": "complete", "verification": "PASS", "note": "GameCanvas integration — puck alpha + renderModifierEffects"},
+        "5.4": {"status": "complete", "verification": "PASS", "note": "ProfileCard.tsx — ELO, W/L/MOD stats"},
+        "5.5": {"status": "complete", "verification": "PASS", "note": "QuickMatchButton.tsx — searching state"},
+        "5.6": {"status": "complete", "verification": "PASS", "note": "CopyCodeButton.tsx — clipboard + fallback"},
+        "5.7": {"status": "complete", "verification": "PASS", "note": "slideInUp keyframe in globals.css"},
+        "5.8": {"status": "complete", "verification": "PASS", "note": "ModifierHUD + activeModifier wired into game page"}
       }
     }
   },
@@ -100,7 +125,25 @@
     "server/src/chaos/agent.ts",
     "server/src/chaos/executor.ts",
     "server/src/chaos/middleware.ts",
-    "server/src/services/on-chain.ts"
+    "server/src/services/on-chain.ts",
+    "src/lib/onechain/config.ts",
+    "src/components/ui/WalletConnect.tsx",
+    "src/hooks/usePlayerProfile.ts",
+    "src/lib/audio/AudioManager.ts",
+    "src/hooks/useAudio.ts",
+    "src/components/game/ModifierHUD.tsx",
+    "src/components/game/ModifierEffects.ts",
+    "src/components/ui/ProfileCard.tsx",
+    "src/components/ui/QuickMatchButton.tsx",
+    "src/components/ui/CopyCodeButton.tsx",
+    "public/sounds/wall-hit.mp3",
+    "public/sounds/paddle-hit.mp3",
+    "public/sounds/goal-scored.mp3",
+    "public/sounds/countdown.mp3",
+    "public/sounds/match-start.mp3",
+    "public/sounds/modifier-activate.mp3",
+    "public/sounds/modifier-expire.mp3",
+    "public/sounds/victory.mp3"
   ],
   "filesModified": [
     "server/src/physics/engine.ts",
@@ -108,7 +151,14 @@
     "server/src/index.ts",
     "server/src/websocket/message-types.ts",
     "server/src/websocket/room-manager.ts",
-    "server/src/websocket/server.ts"
+    "server/src/websocket/server.ts",
+    "src/app/providers.tsx",
+    "src/types/game.ts",
+    "src/contexts/MultiplayerContext.tsx",
+    "src/hooks/useMultiplayerGameEngine.ts",
+    "src/components/game/GameCanvas.tsx",
+    "src/app/globals.css",
+    "src/app/(cyber)/game/page.tsx"
   ],
   "contractAddresses": {
     "chaos_puck": "0xcf5aa21a59cb1439a28e6537c830071ebb2589f324bbf2941761471ff41e76f7"

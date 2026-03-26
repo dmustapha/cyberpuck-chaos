@@ -10,7 +10,7 @@ import {
 } from '@/lib/physics/engine';
 import { PHYSICS_CONFIG } from '@/lib/physics/config';
 import { useGameStore } from '@/stores/gameStore';
-import { Player } from '@/types/game';
+import { Player, ActiveModifier } from '@/types/game';
 import { useAudioOptional } from '@/contexts/AudioContext';
 
 export function useGameEngine() {
@@ -156,9 +156,37 @@ export function useGameEngine() {
     return gameEngineRef.current?.bodies ?? null;
   }, []);
 
+  // Apply a chaos modifier
+  const applyGameModifier = useCallback((modifier: ActiveModifier) => {
+    gameEngineRef.current?.applyGameModifier(modifier);
+  }, []);
+
+  // Revert any active modifier
+  const revertGameModifier = useCallback(() => {
+    gameEngineRef.current?.revertGameModifier();
+  }, []);
+
+  // Get effective radii (accounts for modifiers) — always returns valid radii
+  const getEffectiveRadii = useCallback(() => {
+    return gameEngineRef.current?.getEffectiveRadii() ?? {
+      puck: PHYSICS_CONFIG.puck.radius,
+      paddle1: PHYSICS_CONFIG.paddle.radius,
+      paddle2: PHYSICS_CONFIG.paddle.radius,
+    };
+  }, []);
+
+  // Check if puck is frozen (grace period after goal)
+  const isPuckFrozen = useCallback(() => {
+    return gameEngineRef.current?.isPuckFrozen() ?? false;
+  }, []);
+
   return {
     movePaddle,
     resetPuck,
     getBodies,
+    applyGameModifier,
+    revertGameModifier,
+    getEffectiveRadii,
+    isPuckFrozen,
   };
 }

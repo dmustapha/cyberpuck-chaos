@@ -1,7 +1,14 @@
 import Matter from 'matter-js';
 import { PHYSICS_CONFIG } from './config';
 import { createPuck, createPaddle, createWalls, createGoals } from './bodies';
-import { Player } from '@/types/game';
+import { Player, ActiveModifier } from '@/types/game';
+import {
+  ModifierState,
+  createModifierState,
+  applyModifier,
+  revertModifier,
+  getEffectiveRadii,
+} from './modifiers';
 
 const { Engine, World, Body, Events } = Matter;
 
@@ -19,6 +26,10 @@ export interface GameEngine {
   movePaddle: (player: Player, x: number, y: number) => void;
   resetPuck: (options?: ResetPuckOptions) => void;
   cleanup: () => void;
+  applyGameModifier: (modifier: ActiveModifier) => void;
+  revertGameModifier: () => void;
+  getEffectiveRadii: () => { puck: number; paddle1: number; paddle2: number };
+  isPuckFrozen: () => boolean;
 }
 
 export interface EngineCallbacks {
@@ -44,8 +55,13 @@ interface PaddleState {
  * Create and configure the game physics engine
  */
 export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
-  // Reset corner detection state for new game
+  // Reset state for new game
   cornerStuckFrames = 0;
+  activeMaxSpeed = null;
+  puckFrozenUntil = 0;
+  frozenPuckRef = null;
+  frozenServeToward = undefined;
+  let modifierState: ModifierState = createModifierState();
 
   // Create engine with no gravity (top-down view)
   const engine = Engine.create({
@@ -214,43 +230,59 @@ export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
   function resetPuck(options?: ResetPuckOptions): void {
     const { serveToward, isGameStart = true } = options || {};
 
-    if (isGameStart) {
-      // GAME START: Center position with random velocity
-      Body.setPosition(puck, {
-        x: table.width / 2,
-        y: table.height / 2,
-      });
+    // Both game start and after-goal use the same freeze pattern:
+    // Center puck, reset paddles, freeze 1s, then auto-serve
+    Body.setPosition(puck, {
+      x: table.width / 2,
+      y: table.height / 2,
+    });
+    Body.setVelocity(puck, { x: 0, y: 0 });
+    Body.setStatic(puck, true);
 
-      // Random X velocity for variety
-      const vx = (Math.random() - 0.5) * 4;
-      // Random Y direction
-      const vy = Math.random() > 0.5 ? 5 : -5;
+    // Reset paddle positions to home
+    Body.setPosition(paddle1, { x: table.width / 2, y: table.height * 0.8 });
+    Body.setPosition(paddle2, { x: table.width / 2, y: table.height * 0.2 });
 
-      Body.setVelocity(puck, { x: vx, y: vy });
-    } else {
-      // AFTER GOAL: Stationary at loser's end
-      // Position at 75% for player1 (bottom), 25% for player2 (top)
-      const posY =
-        serveToward === 'player1'
-          ? table.height * 0.75 // Bottom half for player 1
-          : table.height * 0.25; // Top half for player 2
-
-      Body.setPosition(puck, {
-        x: table.width / 2,
-        y: posY,
-      });
-
-      // Stationary - player must hit it to start
-      Body.setVelocity(puck, { x: 0, y: 0 });
-    }
+    // Freeze puck for 1 second — updatePhysics will unfreeze and serve
+    const freezeMs = isGameStart ? 1500 : 1000;
+    puckFrozenUntil = Date.now() + freezeMs;
+    frozenPuckRef = puck;
+    // Game start: random direction. After goal: toward loser.
+    frozenServeToward = isGameStart
+      ? (Math.random() > 0.5 ? 'player1' : 'player2')
+      : serveToward;
 
     Body.setAngularVelocity(puck, 0);
+  }
+
+  /**
+   * Apply a chaos modifier to the game physics
+   */
+  function applyGameModifier(modifier: ActiveModifier): void {
+    modifierState = applyModifier(modifierState, bodies, modifier);
+    activeMaxSpeed = modifierState.activeMaxSpeed;
+  }
+
+  /**
+   * Revert any active modifier back to defaults
+   */
+  function revertGameModifier(): void {
+    modifierState = revertModifier(modifierState, bodies);
+    activeMaxSpeed = null;
+  }
+
+  /**
+   * Get current effective radii (affected by modifiers)
+   */
+  function getGameEffectiveRadii() {
+    return getEffectiveRadii(modifierState);
   }
 
   /**
    * Clean up engine resources
    */
   function cleanup(): void {
+    revertGameModifier();
     Events.off(engine, 'collisionStart');
     World.clear(engine.world, false);
     Engine.clear(engine);
@@ -262,8 +294,22 @@ export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
     movePaddle,
     resetPuck,
     cleanup,
+    applyGameModifier,
+    revertGameModifier,
+    getEffectiveRadii: getGameEffectiveRadii,
+    isPuckFrozen: () => puckFrozenUntil > 0 && Date.now() < puckFrozenUntil,
   };
 }
+
+// Active modifier max speed — null means use config default
+let activeMaxSpeed: number | null = null;
+
+// Puck freeze state — 0 means not frozen, >0 means frozen until that timestamp
+let puckFrozenUntil = 0;
+// The puck body ref for freeze/unfreeze in updatePhysics
+let frozenPuckRef: Matter.Body | null = null;
+// Direction to serve after freeze ends
+let frozenServeToward: Player | undefined = undefined;
 
 // Corner stuck detection — if puck lingers in a corner at low speed, nudge it out
 let cornerStuckFrames = 0;
@@ -281,18 +327,38 @@ const NUDGE_SPEED = 4;        // gentle push toward center
 export function updatePhysics(engine: Matter.Engine, delta: number): void {
   const { puck: puckConfig, table } = PHYSICS_CONFIG;
 
+  // Handle puck freeze — skip physics while frozen, auto-serve when expired
+  if (puckFrozenUntil > 0) {
+    if (Date.now() >= puckFrozenUntil) {
+      // Unfreeze and serve
+      puckFrozenUntil = 0;
+      if (frozenPuckRef) {
+        Body.setStatic(frozenPuckRef, false);
+        const vx = (Math.random() - 0.5) * 3;
+        const vy = frozenServeToward === 'player1' ? 4 : -4;
+        Body.setVelocity(frozenPuckRef, { x: vx, y: vy });
+        frozenPuckRef = null;
+        frozenServeToward = undefined;
+      }
+    } else {
+      // Still frozen — skip physics update entirely
+      return;
+    }
+  }
+
   // Step physics simulation FIRST
   Engine.update(engine, delta);
 
   // THEN clamp velocity and position (catches collision-induced spikes)
   const puckBody = engine.world.bodies.find((b) => b.label === 'puck');
   if (puckBody) {
-    // 1. Clamp puck speed to max
+    // 1. Clamp puck speed to max (respects modifier override)
+    const effectiveMaxSpeed = activeMaxSpeed ?? puckConfig.maxSpeed;
     const speed = Math.sqrt(
       puckBody.velocity.x ** 2 + puckBody.velocity.y ** 2
     );
-    if (speed > puckConfig.maxSpeed) {
-      const scale = puckConfig.maxSpeed / speed;
+    if (speed > effectiveMaxSpeed) {
+      const scale = effectiveMaxSpeed / speed;
       Body.setVelocity(puckBody, {
         x: puckBody.velocity.x * scale,
         y: puckBody.velocity.y * scale,

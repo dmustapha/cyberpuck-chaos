@@ -17,6 +17,9 @@ export interface RenderableBodies {
 
 interface GameCanvasProps {
   getBodies: () => RenderableBodies | null;
+  getEffectiveRadii?: () => { puck: number; paddle1: number; paddle2: number } | null;
+  activeModifierType?: string | null;
+  isPuckFrozen?: () => boolean;
 }
 
 export interface GameCanvasRef {
@@ -95,7 +98,7 @@ function createParticles(width: number, height: number): Particle[] {
 }
 
 export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
-  function GameCanvas({ getBodies }, ref) {
+  function GameCanvas({ getBodies, getEffectiveRadii, activeModifierType, isPuckFrozen }, ref) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
     // Store puck position history for trail effect
@@ -112,6 +115,20 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
     const lastPuckPosRef = useRef<{ x: number; y: number } | null>(null);
     // Floating particles for background
     const particlesRef = useRef<Particle[] | null>(null);
+    // Visual radii with smooth lerp for modifier transitions
+    const visualRadiiRef = useRef({
+      puck: PHYSICS_CONFIG.puck.radius,
+      paddle1: PHYSICS_CONFIG.paddle.radius,
+      paddle2: PHYSICS_CONFIG.paddle.radius,
+    });
+    // Puck alpha for invisible_puck modifier
+    const visualPuckAlphaRef = useRef(1);
+    // Ref for activeModifierType — avoids restarting animation loop when modifier changes
+    const activeModifierTypeRef = useRef<string | null | undefined>(null);
+    activeModifierTypeRef.current = activeModifierType;
+    // Ref for isPuckFrozen getter — read inside draw without restarting loop
+    const isPuckFrozenRef = useRef<(() => boolean) | undefined>(undefined);
+    isPuckFrozenRef.current = isPuckFrozen;
 
     useImperativeHandle(ref, () => ({
       canvas: canvasRef.current,
@@ -122,7 +139,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) return;
 
-      const { table, paddle, puck: puckConfig } = PHYSICS_CONFIG;
+      const { table } = PHYSICS_CONFIG;
       const now = performance.now();
 
       // Initialize particles on first draw
@@ -322,12 +339,40 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       const { puck, paddle1, paddle2 } = bodies;
       timeRef.current = now;
 
+      // Lerp visual radii toward target (smooth modifier transitions)
+      const LERP = 0.12;
+      const SNAP = 0.5;
+      const defaults = {
+        puck: PHYSICS_CONFIG.puck.radius,
+        paddle1: PHYSICS_CONFIG.paddle.radius,
+        paddle2: PHYSICS_CONFIG.paddle.radius,
+      };
+      const target = getEffectiveRadii?.() ?? defaults;
+      for (const key of ['puck', 'paddle1', 'paddle2'] as const) {
+        const diff = target[key] - visualRadiiRef.current[key];
+        if (Math.abs(diff) < SNAP) {
+          visualRadiiRef.current[key] = target[key];
+        } else {
+          visualRadiiRef.current[key] += diff * LERP;
+        }
+      }
+      const vr = visualRadiiRef.current;
+
+      // Lerp puck alpha for invisible_puck modifier (read from ref — stable, no dep needed)
+      const targetAlpha = activeModifierTypeRef.current === 'invisible_puck' ? 0.05 : 1;
+      const alphaDiff = targetAlpha - visualPuckAlphaRef.current;
+      if (Math.abs(alphaDiff) < 0.01) {
+        visualPuckAlphaRef.current = targetAlpha;
+      } else {
+        visualPuckAlphaRef.current += alphaDiff * LERP;
+      }
+
       // Calculate pulsing glow intensity
       const pulsePhase = Math.sin(now * GLOW_PULSE_SPEED);
       const baseGlow = GLOW_MIN + (GLOW_MAX - GLOW_MIN) * (0.5 + 0.5 * pulsePhase);
 
       // Detect paddle-puck collisions for flash effect
-      const collisionDistance = paddle.radius + puckConfig.radius;
+      const collisionDistance = vr.paddle1 + vr.puck;
       const dist1 = Math.hypot(
         puck.position.x - paddle1.position.x,
         puck.position.y - paddle1.position.y
@@ -382,7 +427,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       for (let i = paddle1Trail.length - 1; i >= 1; i--) {
         const point = paddle1Trail[i];
         const opacity = Math.pow(PADDLE_TRAIL_FADE_RATE, i) * 0.4;
-        const size = paddle.radius * (1 - i / paddle1Trail.length * 0.3);
+        const size = vr.paddle1 * (1 - i / paddle1Trail.length * 0.3);
 
         ctx.beginPath();
         ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
@@ -396,7 +441,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       for (let i = paddle2Trail.length - 1; i >= 1; i--) {
         const point = paddle2Trail[i];
         const opacity = Math.pow(PADDLE_TRAIL_FADE_RATE, i) * 0.4;
-        const size = paddle.radius * (1 - i / paddle2Trail.length * 0.3);
+        const size = vr.paddle2 * (1 - i / paddle2Trail.length * 0.3);
 
         ctx.beginPath();
         ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
@@ -410,23 +455,33 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       for (let i = trail.length - 1; i >= 1; i--) {
         const point = trail[i];
         const opacity = Math.pow(TRAIL_FADE_RATE, i) * 0.6;
-        const size = puckConfig.radius * (1 - i / trail.length * 0.5);
+        const size = vr.puck * (1 - i / trail.length * 0.5);
 
         ctx.beginPath();
         ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${opacity * visualPuckAlphaRef.current})`;
         ctx.fill();
       }
       ctx.restore();
 
-      // Draw puck with glow
+      // Draw puck with glow (respects invisible_puck alpha + freeze pulse)
       ctx.save();
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = '#ffffff';
+      const frozen = isPuckFrozenRef.current?.() ?? false;
+      let puckAlpha = visualPuckAlphaRef.current;
+      let puckGlow = 15;
+      if (frozen) {
+        // Pulse alpha between 0.3 and 1.0 during freeze
+        puckAlpha = Math.sin(now * 0.01) * 0.35 + 0.65;
+        puckGlow = 25 + Math.sin(now * 0.008) * 10; // Extra glow pulse
+      }
+      ctx.globalAlpha = puckAlpha;
+      ctx.shadowColor = frozen ? '#00ffff' : '#ffffff';
+      ctx.shadowBlur = puckGlow;
+      ctx.fillStyle = frozen ? '#00ffff' : '#ffffff';
       ctx.beginPath();
-      ctx.arc(puck.position.x, puck.position.y, puckConfig.radius, 0, Math.PI * 2);
+      ctx.arc(puck.position.x, puck.position.y, vr.puck, 0, Math.PI * 2);
       ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.restore();
 
       // Draw paddle 1 (player - bottom) with pulsing glow and contact flash
@@ -437,13 +492,13 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       ctx.shadowBlur = glow1;
       ctx.fillStyle = `rgb(0, ${green1}, 0)`;
       ctx.beginPath();
-      ctx.arc(paddle1.position.x, paddle1.position.y, paddle.radius, 0, Math.PI * 2);
+      ctx.arc(paddle1.position.x, paddle1.position.y, vr.paddle1, 0, Math.PI * 2);
       ctx.fill();
       // Inner circle
       const innerGreen1 = Math.min(100, 68 + flash1 * 32);
       ctx.fillStyle = `rgb(0, ${innerGreen1}, 0)`;
       ctx.beginPath();
-      ctx.arc(paddle1.position.x, paddle1.position.y, paddle.radius * 0.4, 0, Math.PI * 2);
+      ctx.arc(paddle1.position.x, paddle1.position.y, vr.paddle1 * 0.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
@@ -455,18 +510,18 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       ctx.shadowBlur = glow2;
       ctx.fillStyle = `rgb(${red2}, 0, 0)`;
       ctx.beginPath();
-      ctx.arc(paddle2.position.x, paddle2.position.y, paddle.radius, 0, Math.PI * 2);
+      ctx.arc(paddle2.position.x, paddle2.position.y, vr.paddle2, 0, Math.PI * 2);
       ctx.fill();
       // Inner circle
       const innerRed2 = Math.min(100, 68 + flash2 * 32);
       ctx.fillStyle = `rgb(${innerRed2}, 0, 0)`;
       ctx.beginPath();
-      ctx.arc(paddle2.position.x, paddle2.position.y, paddle.radius * 0.4, 0, Math.PI * 2);
+      ctx.arc(paddle2.position.x, paddle2.position.y, vr.paddle2 * 0.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
       animationRef.current = requestAnimationFrame(draw);
-    }, [getBodies]);
+    }, [getBodies, getEffectiveRadii]);
 
     useEffect(() => {
       animationRef.current = requestAnimationFrame(draw);
