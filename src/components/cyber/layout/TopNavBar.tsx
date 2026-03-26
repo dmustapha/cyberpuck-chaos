@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * TopNavBar - Theme-aware navigation bar
- * Wallet connection will be added in Phase 4 (OneChain dapp-kit).
+ * TopNavBar - Theme-aware navigation bar with OneChain wallet connection
  */
 
 import React, { useState } from 'react';
+import { ConnectButton } from '@onelabs/dapp-kit';
 import { useThemedStyles } from '@/lib/cyber/useThemedStyles';
 import { usePlayerStore } from '@/stores/playerStore';
 import { Logo } from './Logo';
@@ -37,18 +37,8 @@ export function TopNavBar({ className = '' }: TopNavBarProps) {
           <div className="hidden md:flex items-center gap-6">
             <NavLinks />
 
-            {/* Wallet placeholder — Phase 4 */}
-            <button
-              className="px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 hover:scale-105 opacity-50 cursor-not-allowed"
-              style={{
-                backgroundColor: theme.colors.primary,
-                color: theme.colors.bg.primary,
-                boxShadow: `0 0 20px ${theme.colors.primary}40`,
-              }}
-              disabled
-            >
-              Connect Wallet
-            </button>
+            {/* OneChain wallet connection */}
+            <ConnectButton connectText="Connect Wallet" />
 
             {profile && (
               <div className="flex items-center gap-3 pl-4 border-l border-gray-700">
@@ -92,6 +82,9 @@ export function TopNavBar({ className = '' }: TopNavBarProps) {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t" style={{ borderColor: theme.colors.border.subtle }}>
             <NavLinks direction="vertical" />
+            <div className="mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border.subtle }}>
+              <ConnectButton connectText="Connect Wallet" />
+            </div>
             {profile && (
               <div className="flex items-center gap-3 mt-4 pt-4 border-t" style={{ borderColor: theme.colors.border.subtle }}>
                 <RankBadge rank={profile.rank} size="sm" />

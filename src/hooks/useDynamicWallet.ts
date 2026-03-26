@@ -1,72 +1,64 @@
 'use client';
 
 /**
- * useDynamicWallet Hook — STUB (Phase 1)
- * Will be replaced with OneChain wallet integration in Phase 4.
+ * useDynamicWallet — Real OneChain wallet integration via @onelabs/dapp-kit.
+ * Wraps useCurrentAccount() to provide wallet state to game components.
+ * Wallet is optional — generates a guest address for multiplayer identity when not connected.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useCurrentAccount } from '@onelabs/dapp-kit';
 
-interface StakeAmount {
-  value: string;
-  bigint: bigint;
-  formatted: string;
-}
-
-export type WalletConnectionStatus = 'disconnected' | 'connecting' | 'connected';
+export type WalletConnectionStatus = 'disconnected' | 'connected';
 
 export interface UseDynamicWalletReturn {
   isConnected: boolean;
-  isConnecting: boolean;
+  address: string;
+  shortAddress: string;
   status: WalletConnectionStatus;
-  address: string | null;
-  shortAddress: string | null;
-  balance: StakeAmount | null;
-  formattedBalance: string | null;
-  isChainConnected: boolean;
-  chainId: string | null;
-  isApplicationReady: boolean;
-  isMockMode: boolean;
-  connect: () => void;
-  disconnect: () => void;
-  error: Error | null;
-  clearError: () => void;
+}
+
+// Generate a stable guest address for the session
+let guestAddress: string | null = null;
+function getGuestAddress(): string {
+  if (!guestAddress) {
+    guestAddress = `guest-${Math.random().toString(36).slice(2, 10)}`;
+  }
+  return guestAddress;
 }
 
 export function useDynamicWallet(): UseDynamicWalletReturn {
-  const connect = useCallback(() => {}, []);
-  const disconnect = useCallback(() => {}, []);
-  const clearError = useCallback(() => {}, []);
+  const account = useCurrentAccount();
+
+  const address = useMemo(
+    () => account?.address ?? getGuestAddress(),
+    [account],
+  );
+
+  const shortAddress = useMemo(
+    () =>
+      account
+        ? `${account.address.slice(0, 6)}...${account.address.slice(-4)}`
+        : 'Guest',
+    [account],
+  );
 
   return {
-    isConnected: false,
-    isConnecting: false,
-    status: 'disconnected',
-    address: null,
-    shortAddress: null,
-    balance: null,
-    formattedBalance: null,
-    isChainConnected: false,
-    chainId: null,
-    isApplicationReady: true,
-    isMockMode: true,
-    connect,
-    disconnect,
-    error: null,
-    clearError,
+    isConnected: !!account,
+    address,
+    shortAddress,
+    status: account ? 'connected' : 'disconnected',
   };
 }
 
 export function useWalletAddress(): string | null {
-  return null;
+  const account = useCurrentAccount();
+  return account?.address ?? null;
 }
 
 export function useWalletConnected(): boolean {
-  return false;
-}
-
-export function useWalletBalance(): StakeAmount | null {
-  return null;
+  const account = useCurrentAccount();
+  return !!account;
 }
 
 export default useDynamicWallet;

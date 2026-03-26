@@ -19,9 +19,8 @@
  */
 
 import React, { useRef, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { cyberTheme } from '@/lib/cyber/theme';
-import { useGameStore, GamePageState } from '@/stores/gameStore';
+import { useGameStore } from '@/stores/gameStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useMultiplayerGameEngine } from '@/hooks/useMultiplayerGameEngine';
@@ -45,13 +44,21 @@ import { MultiplayerPauseOverlay } from '@/components/cyber/game/MultiplayerPaus
 import { OpponentQuitModal } from '@/components/cyber/game/OpponentQuitModal';
 import { MultiplayerGameOverModal } from '@/components/cyber/game/MultiplayerGameOverModal';
 import { RematchRequestModal } from '@/components/cyber/game/RematchRequestModal';
+import { WalletGate } from '@/components/cyber/WalletGate';
 
 export default function CyberGamePage() {
+  return (
+    <WalletGate>
+      <CyberGameContent />
+    </WalletGate>
+  );
+}
+
+function CyberGameContent() {
   const gameCanvasRef = useRef<GameCanvasRef>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
-  const router = useRouter();
 
-  // Wallet connection
+  // Wallet connection (optional — provides address for multiplayer identity)
   useDynamicWallet();
 
   const pageState = useGameStore((state) => state.pageState);

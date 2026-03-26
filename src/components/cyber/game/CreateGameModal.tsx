@@ -28,7 +28,7 @@ export function CreateGameModal({ isOpen, onClose }: CreateGameModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
 
-  const { address, shortAddress, isConnected, connect } = useDynamicWallet();
+  const { address, shortAddress, isConnected } = useDynamicWallet();
   const { createGame, isLoading } = useGameAPI();
   const createMultiplayerGame = useGameStore((s) => s.createMultiplayerGame);
 
@@ -40,10 +40,6 @@ export function CreateGameModal({ isOpen, onClose }: CreateGameModalProps) {
   }, [address]);
 
   const handleCreateGame = async () => {
-    if (!address) {
-      setError('Please connect your wallet first');
-      return;
-    }
 
     setState('creating');
     setError(null);
@@ -59,7 +55,7 @@ export function CreateGameModal({ isOpen, onClose }: CreateGameModalProps) {
       setGameId(roomCode);
 
       // Update store with actual gameId for API calls, roomCode for display, and playerId for WebSocket
-      createMultiplayerGame(actualGameId, roomCode, address || 'local-player', playerId);
+      createMultiplayerGame(actualGameId, roomCode, address, playerId);
 
       setState('success');
 
@@ -114,38 +110,18 @@ export function CreateGameModal({ isOpen, onClose }: CreateGameModalProps) {
             >
               Your Wallet
             </span>
-            {isConnected ? (
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: cyberTheme.colors.success }}
-                />
-                <span
-                  className="font-mono text-sm"
-                  style={{ color: cyberTheme.colors.success }}
-                >
-                  {shortAddress}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={connect}
-                className="flex items-center gap-2 px-3 py-1 rounded-md transition-colors"
-                style={{
-                  backgroundColor: `${cyberTheme.colors.warning}20`,
-                  border: `1px solid ${cyberTheme.colors.warning}40`,
-                  color: cyberTheme.colors.warning,
-                }}
+            <div className="flex items-center gap-2">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: isConnected ? cyberTheme.colors.success : cyberTheme.colors.warning }}
+              />
+              <span
+                className="font-mono text-sm"
+                style={{ color: isConnected ? cyberTheme.colors.success : cyberTheme.colors.warning }}
               >
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: cyberTheme.colors.warning }}
-                />
-                <span className="text-xs uppercase tracking-wider font-bold">
-                  Connect Wallet
-                </span>
-              </button>
-            )}
+                {shortAddress}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -224,9 +200,9 @@ export function CreateGameModal({ isOpen, onClose }: CreateGameModalProps) {
             variant="primary"
             className="flex-1"
             onClick={handleCreateGame}
-            disabled={!isConnected || isProcessing || state === 'success'}
+            disabled={isProcessing || state === 'success'}
           >
-            {state === 'idle' && (isConnected ? 'Create Game' : 'Wallet Required')}
+            {state === 'idle' && 'Create Game'}
             {state === 'creating' && 'Creating...'}
             {state === 'success' && 'Success!'}
             {state === 'error' && 'Try Again'}

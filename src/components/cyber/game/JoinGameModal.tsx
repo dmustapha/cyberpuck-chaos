@@ -33,7 +33,7 @@ export function JoinGameModal({ isOpen, onClose }: JoinGameModalProps) {
   const [roomCode, setRoomCode] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { address, shortAddress, isConnected: walletConnected, connect: connectWallet } = useDynamicWallet();
+  const { address, shortAddress, isConnected: walletConnected } = useDynamicWallet();
   const { joinGame, isLoading } = useGameAPI();
   const joinMultiplayerGame = useGameStore((s) => s.joinMultiplayerGame);
   const setRoomId = useGameStore((s) => s.setRoomId);
@@ -76,7 +76,7 @@ export function JoinGameModal({ isOpen, onClose }: JoinGameModalProps) {
       const mockCreatorWallet = '0x' + '1'.repeat(40);
 
       // Update store with joined game (use actualGameId for API, roomCode for display, playerId for WebSocket)
-      joinMultiplayerGame(actualGameId, roomCode, mockCreatorWallet, address!, playerId);
+      joinMultiplayerGame(actualGameId, roomCode, mockCreatorWallet, address, playerId);
       setRoomId(actualGameId);
 
       setState('success');
@@ -111,11 +111,6 @@ export function JoinGameModal({ isOpen, onClose }: JoinGameModalProps) {
   };
 
   const handleJoinGame = async () => {
-    if (!address) {
-      setError('Please connect your wallet first');
-      return;
-    }
-
     setState('validating');
     setError(null);
 
@@ -179,7 +174,7 @@ export function JoinGameModal({ isOpen, onClose }: JoinGameModalProps) {
   };
 
   const isProcessing = state === 'validating' || state === 'joining' || state === 'connecting' || isLoading;
-  const canJoin = walletConnected && gameIdInput.length >= 9 && !isProcessing; // XXXX-XXXX = 9 chars
+  const canJoin = gameIdInput.length >= 9 && !isProcessing; // XXXX-XXXX = 9 chars
 
   return (
     <Modal
@@ -206,38 +201,18 @@ export function JoinGameModal({ isOpen, onClose }: JoinGameModalProps) {
             >
               Your Wallet
             </span>
-            {walletConnected ? (
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: cyberTheme.colors.success }}
-                />
-                <span
-                  className="font-mono text-sm"
-                  style={{ color: cyberTheme.colors.success }}
-                >
-                  {shortAddress}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={connectWallet}
-                className="flex items-center gap-2 px-3 py-1 rounded-md transition-colors"
-                style={{
-                  backgroundColor: `${cyberTheme.colors.warning}20`,
-                  border: `1px solid ${cyberTheme.colors.warning}40`,
-                  color: cyberTheme.colors.warning,
-                }}
+            <div className="flex items-center gap-2">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: walletConnected ? cyberTheme.colors.success : cyberTheme.colors.warning }}
+              />
+              <span
+                className="font-mono text-sm"
+                style={{ color: walletConnected ? cyberTheme.colors.success : cyberTheme.colors.warning }}
               >
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: cyberTheme.colors.warning }}
-                />
-                <span className="text-xs uppercase tracking-wider font-bold">
-                  Connect Wallet
-                </span>
-              </button>
-            )}
+                {shortAddress}
+              </span>
+            </div>
           </div>
         </div>
 
