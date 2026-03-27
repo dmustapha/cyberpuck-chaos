@@ -49,8 +49,7 @@ next-env.d.ts
 
 # Local
 .claude/
-docs/context/
-docs/prompts/
+.build-state.json
 
-.env.local
+# Secrets (duplicates for clarity)
 server/.env

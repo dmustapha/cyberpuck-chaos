@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: air-hockey-server
+    name: cyberpuck-chaos-server
     runtime: node
     plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
