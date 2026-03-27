@@ -20,7 +20,7 @@ export interface RematchState {
 
 export interface GameRoom {
   gameId: string;
-  players: Map<string, { ws: WebSocket; playerNumber: 1 | 2 }>;
+  players: Map<string, { ws: WebSocket; playerNumber: 1 | 2; walletAddress?: string }>;
   state: 'waiting' | 'countdown' | 'playing' | 'paused' | 'resuming' | 'ended';
   physicsEngine: PhysicsEngine | null;
   broadcastInterval: NodeJS.Timeout | null;
@@ -67,7 +67,8 @@ export class RoomManager {
   joinRoom(
     gameId: string,
     playerId: string,
-    ws: WebSocket
+    ws: WebSocket,
+    walletAddress?: string
   ): { success: boolean; playerNumber?: 1 | 2; error?: string } {
     const room = this.rooms.get(gameId);
 
@@ -86,7 +87,7 @@ export class RoomManager {
       this.wsToRoom.delete(existingPlayer.ws);
 
       // Update to new WebSocket while preserving player number
-      room.players.set(playerId, { ws, playerNumber: existingPlayer.playerNumber });
+      room.players.set(playerId, { ws, playerNumber: existingPlayer.playerNumber, walletAddress: walletAddress ?? existingPlayer.walletAddress });
 
       // Track new WebSocket for reverse lookup
       this.wsToRoom.set(ws, { gameId, playerId });
@@ -105,7 +106,7 @@ export class RoomManager {
     // Assign player number (1 for first player, 2 for second)
     const playerNumber: 1 | 2 = room.players.size === 0 ? 1 : 2;
 
-    room.players.set(playerId, { ws, playerNumber });
+    room.players.set(playerId, { ws, playerNumber, walletAddress });
 
     // Track WebSocket for reverse lookup
     this.wsToRoom.set(ws, { gameId, playerId });
@@ -245,6 +246,21 @@ export class RoomManager {
 
     console.log(`[RoomManager] Cleaned up room ${gameId}`);
   }
+  /**
+   * Get wallet addresses for both players in a room
+   */
+  getPlayerWallets(gameId: string): { player1?: string; player2?: string } {
+    const room = this.rooms.get(gameId);
+    if (!room) return {};
+
+    const result: { player1?: string; player2?: string } = {};
+    for (const [, player] of room.players) {
+      if (player.playerNumber === 1) result.player1 = player.walletAddress;
+      if (player.playerNumber === 2) result.player2 = player.walletAddress;
+    }
+    return result;
+  }
+
   // === Quick Match ===
   private matchmakingQueue: Array<{
     ws: WebSocket;
@@ -286,8 +302,8 @@ export class RoomManager {
 
       const gameId = `qm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       this.createRoom(gameId);
-      this.joinRoom(gameId, player1.playerId, player1.ws);
-      this.joinRoom(gameId, player2.playerId, player2.ws);
+      this.joinRoom(gameId, player1.playerId, player1.ws, player1.walletAddress);
+      this.joinRoom(gameId, player2.playerId, player2.ws, player2.walletAddress);
 
       const found = JSON.stringify({ type: 'MATCHMAKING_FOUND', roomCode: gameId });
       try { player1.ws.send(found); } catch { /* ignore */ }

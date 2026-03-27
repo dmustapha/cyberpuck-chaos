@@ -129,7 +129,7 @@ export function setupWebSocketServer(httpServer: HttpServer, gameServer: GameSer
 function handleMessage(ws: WebSocket, message: ClientMessage, gameServer: GameServer): void {
   if (isJoinRoomMessage(message)) {
     console.log(`[WebSocket] Join room request: gameId=${message.gameId}, playerId=${message.playerId}`);
-    gameServer.handleJoinRoom(ws, message.gameId, message.playerId);
+    gameServer.handleJoinRoom(ws, message.gameId, message.playerId, message.walletAddress);
   } else if (isPaddleMoveMessage(message)) {
     gameServer.handlePaddleMove(ws, message.x, message.y);
   } else if (isPlayerReadyMessage(message)) {

@@ -201,23 +201,6 @@ class GameAPI {
   }
 
   /**
-   * Submit game result
-   */
-  async submitResult(
-    gameId: string,
-    player1Score: number,
-    player2Score: number
-  ): Promise<SuccessResponse> {
-    return this.request<SuccessResponse>(
-      `/api/games/${encodeURIComponent(gameId)}/result`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ player1Score, player2Score }),
-      }
-    );
-  }
-
-  /**
    * Cancel a game (only by creator, before opponent joins)
    */
   async cancelGame(gameId: string): Promise<SuccessResponse> {

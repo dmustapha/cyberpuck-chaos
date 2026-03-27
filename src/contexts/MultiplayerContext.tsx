@@ -18,6 +18,11 @@ interface ServerGameState {
   paddle1: { x: number; y: number };
   paddle2: { x: number; y: number };
   score: { player1: number; player2: number };
+  // Modifier-affected radii and freeze state (piggybacked on state-update)
+  puckRadius?: number;
+  paddle1Radius?: number;
+  paddle2Radius?: number;
+  puckFrozen?: boolean;
 }
 
 type GameStatus = 'waiting' | 'countdown' | 'playing' | 'paused' | 'resuming' | 'ended';
@@ -59,7 +64,7 @@ type ServerMessage =
   | { type: 'opponent-joined'; opponentId: string }
   | { type: 'opponent-disconnected' }
   | { type: 'countdown'; seconds: number }
-  | { type: 'state-update'; puck: ServerGameState['puck']; paddle1: ServerGameState['paddle1']; paddle2: ServerGameState['paddle2']; score: ServerGameState['score']; timestamp: number }
+  | { type: 'state-update'; puck: ServerGameState['puck']; paddle1: ServerGameState['paddle1']; paddle2: ServerGameState['paddle2']; score: ServerGameState['score']; timestamp: number; puckRadius?: number; paddle1Radius?: number; paddle2Radius?: number; puckFrozen?: boolean }
   | { type: 'goal'; scorer: 1 | 2; newScore: { player1: number; player2: number } }
   | { type: 'game-over'; winner: 1 | 2; finalScore: { player1: number; player2: number } }
   | { type: 'error'; code: string; message: string }
@@ -72,6 +77,7 @@ type ServerMessage =
   | { type: 'rematch-accepted' }
   | { type: 'rematch-declined' }
   | { type: 'opponent-exited' }
+  | { type: 'tx-recorded'; txDigest: string }
   | { type: 'MODIFIER_APPLIED'; modifier: { id: string; type: ModifierType; variation: ModifierVariation; target: ModifierTarget; duration: number; reason: string; startTime: number } }
   | { type: 'MODIFIER_EXPIRED'; modifierId: string };
 
@@ -88,6 +94,7 @@ interface MultiplayerContextValue {
   countdown: number | null;
   gameStatus: GameStatus;
   winner: 1 | 2 | null;
+  txDigest: string | null;
 
   // Pause state
   pauseState: PauseState;
@@ -96,12 +103,16 @@ interface MultiplayerContextValue {
   // Modifier state
   activeModifier: ActiveModifier | null;
 
+  // Goal state (for triggering celebration animation)
+  goalScorer: 1 | 2 | null;
+  clearGoalScorer: () => void;
+
   // Rematch state
   rematchState: RematchState;
   opponentExited: OpponentExitedState;
 
   // WebSocket Actions
-  connect: (gameId: string, playerId: string) => void;
+  connect: (gameId: string, playerId: string, walletAddress?: string) => void;
   disconnect: () => void;
   sendPaddleMove: (x: number, y: number) => void;
   sendPauseRequest: () => void;
@@ -133,6 +144,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameStatus, setGameStatus] = useState<GameStatus>('waiting');
   const [winner, setWinner] = useState<1 | 2 | null>(null);
+  const [txDigest, setTxDigest] = useState<string | null>(null);
 
   // Pause state
   const [pauseState, setPauseState] = useState<PauseState>({
@@ -166,11 +178,13 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
   // Modifier state
   const [activeModifier, setActiveModifier] = useState<ActiveModifier | null>(null);
+  const [goalScorer, setGoalScorer] = useState<1 | 2 | null>(null);
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const currentGameIdRef = useRef<string | null>(null);
   const currentPlayerIdRef = useRef<string | null>(null);
+  const currentWalletRef = useRef<string | undefined>(undefined);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptRef = useRef(0);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -239,6 +253,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     setGameStatus('waiting');
     gameStatusRef.current = 'waiting';
     setWinner(null);
+    setTxDigest(null);
     setPauseState({
       isPaused: false,
       reason: null,
@@ -340,7 +355,8 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   }, [sendMessage]);
 
   // Connect to game
-  const connect = useCallback((gameId: string, playerId: string) => {
+  const connect = useCallback((gameId: string, playerId: string, walletAddress?: string) => {
+    currentWalletRef.current = walletAddress;
     // If already connected to this game, don't reconnect
     if (wsRef.current &&
         wsRef.current.readyState === WebSocket.OPEN &&
@@ -381,6 +397,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
           type: 'join-room',
           gameId,
           playerId,
+          walletAddress: currentWalletRef.current,
         }));
 
         startHeartbeat();
@@ -431,6 +448,10 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
                 paddle1: message.paddle1,
                 paddle2: message.paddle2,
                 score: message.score,
+                puckRadius: message.puckRadius,
+                paddle1Radius: message.paddle1Radius,
+                paddle2Radius: message.paddle2Radius,
+                puckFrozen: message.puckFrozen,
               });
               if (gameStatusRef.current === 'countdown' || gameStatusRef.current === 'waiting') {
                 console.log('[MultiplayerContext] First state-update received, transitioning to playing');
@@ -442,6 +463,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
             case 'goal':
               setGameState((prev) => prev ? { ...prev, score: message.newScore } : null);
+              setGoalScorer(message.scorer as 1 | 2);
               break;
 
             case 'game-over':
@@ -527,6 +549,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
               });
               // Reset other game states for new match
               setWinner(null);
+              setTxDigest(null);
               setOpponentQuit({ hasQuit: false, winner: null, finalScore: null });
               setOpponentExited({ hasExited: false });
               // Server will send countdown messages next
@@ -540,6 +563,11 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
                 opponentRequested: false,
                 declined: true,
               }));
+              break;
+
+            case 'tx-recorded':
+              console.log('[MultiplayerContext] TX recorded:', message.txDigest);
+              setTxDigest(message.txDigest);
               break;
 
             case 'opponent-exited':
@@ -640,11 +668,15 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     countdown,
     gameStatus,
     winner,
+    txDigest,
     // Pause state
     pauseState,
     opponentQuit,
     // Modifier state
     activeModifier,
+    // Goal state
+    goalScorer,
+    clearGoalScorer: () => setGoalScorer(null),
     // Rematch state
     rematchState,
     opponentExited,

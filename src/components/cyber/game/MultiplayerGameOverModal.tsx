@@ -22,6 +22,7 @@ interface MultiplayerGameOverModalProps {
   finalScore: { player1: number; player2: number } | null;
   rematchState: RematchState;
   opponentExited: OpponentExitedState;
+  txDigest?: string | null;
   onPlayAgain: () => void;
   onExit: () => void;
   onResetGame: () => void;
@@ -35,6 +36,7 @@ export function MultiplayerGameOverModal({
   finalScore,
   rematchState,
   opponentExited,
+  txDigest,
   onPlayAgain,
   onExit,
   onResetGame,
@@ -225,6 +227,21 @@ export function MultiplayerGameOverModal({
                 Opponent
               </div>
             </div>
+          </div>
+        )}
+
+        {/* On-chain recording link */}
+        {txDigest && (
+          <div className="text-center mb-4">
+            <a
+              href={`https://onescan.cc/testnet/tx/${txDigest}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline"
+              style={{ color: cyberTheme.colors.primary }}
+            >
+              Recorded on-chain →
+            </a>
           </div>
         )}
 

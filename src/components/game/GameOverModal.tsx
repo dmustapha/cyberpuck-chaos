@@ -14,6 +14,8 @@ export function GameOverModal() {
   const resetGame = useGameStore((state) => state.resetGame);
   const startGame = useGameStore((state) => state.startGame);
 
+  const txExplorerUrl = useGameStore((state) => state.txExplorerUrl);
+
   const isOpen = status === 'gameover';
   const playerWon = winner === 'player1';
 
@@ -46,6 +48,18 @@ export function GameOverModal() {
           {' - '}
           <span className="text-red-400 text-xl sm:text-2xl font-bold">{scores.player2}</span>
         </div>
+
+        {/* On-chain recording link */}
+        {txExplorerUrl && (
+          <a
+            href={txExplorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-cyan-400 hover:text-cyan-300 underline"
+          >
+            Recorded on-chain →
+          </a>
+        )}
 
         {/* Trophy or defeat icon */}
         <div className="text-5xl sm:text-6xl mb-6 sm:mb-8">{playerWon ? '🏆' : '😢'}</div>

@@ -79,6 +79,10 @@ interface GameStore {
   opponentReady: boolean;
   isReady: boolean;
 
+  // On-chain recording
+  txDigest: string | null;
+  txExplorerUrl: string | null;
+
   // Extended mode
   gameModeType: GameModeType;
   multiplayerGameInfo: MultiplayerGameInfo | null;
@@ -103,8 +107,12 @@ interface GameStore {
   setOpponentReady: (ready: boolean) => void;
   setIsReady: (ready: boolean) => void;
   setMultiplayerScores: (scores: Scores) => void;
+  setMultiplayerGoal: (scorer: 1 | 2) => void;
   setMultiplayerGameOver: (winner: 1 | 2, finalScore: Scores) => void;
   resetMultiplayer: () => void;
+
+  // On-chain recording actions
+  setTxResult: (digest: string, url: string) => void;
 
   // Mode actions
   setGameModeType: (modeType: GameModeType) => void;
@@ -166,6 +174,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   combo: { ...initialCombo },
   matchMetadata: null,
 
+  // On-chain recording
+  txDigest: null,
+  txExplorerUrl: null,
+
   // Game page state
   pageState: 'mode-selection',
 
@@ -223,6 +235,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setOpponentReady: (ready) => set({ opponentReady: ready }),
   setIsReady: (ready) => set({ isReady: ready }),
   setMultiplayerScores: (scores) => set({ scores }),
+  setMultiplayerGoal: (scorer: 1 | 2) => {
+    const scorerPlayer: Player = scorer === 1 ? 'player1' : 'player2';
+    set({ lastScorer: scorerPlayer, status: 'goal', pageState: 'goal' });
+  },
 
   setMultiplayerGameOver: (winnerNum, finalScore) => {
     // Convert 1|2 to 'player1'|'player2'
@@ -248,6 +264,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       multiplayerGameInfo: null,
       pageState: 'mode-selection',
     }),
+
+  // On-chain recording setter
+  setTxResult: (digest, url) => set({ txDigest: digest, txExplorerUrl: url }),
 
   // Mode setters
   setGameModeType: (modeType) => set({ gameModeType: modeType }),
@@ -481,6 +500,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       opponentConnected: false,
       opponentReady: false,
       isReady: false,
+      // Reset on-chain recording state
+      txDigest: null,
+      txExplorerUrl: null,
       // Reset extended mode state
       gameModeType: 'ai',
       multiplayerGameInfo: null,

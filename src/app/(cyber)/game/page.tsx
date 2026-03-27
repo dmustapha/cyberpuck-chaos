@@ -27,6 +27,7 @@ import { useMultiplayerGameEngine } from '@/hooks/useMultiplayerGameEngine';
 import { usePlayerInput } from '@/hooks/usePlayerInput';
 import { useAIOpponent } from '@/hooks/useAIOpponent';
 import { useDynamicWallet } from '@/hooks/useDynamicWallet';
+import { useOnChainRecording } from '@/hooks/useOnChainRecording';
 import { useAudioOptional } from '@/contexts/AudioContext';
 import { GameCanvas, GameCanvasRef } from '@/components/game/GameCanvas';
 import { ModifierHUD } from '@/components/game/ModifierHUD';
@@ -59,7 +60,10 @@ function CyberGameContent() {
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
 
   // Wallet connection (optional — provides address for multiplayer identity)
-  useDynamicWallet();
+  const { address: walletAddress } = useDynamicWallet();
+
+  // On-chain match recording for AI mode
+  useOnChainRecording();
 
   const pageState = useGameStore((state) => state.pageState);
   const status = useGameStore((state) => state.status);
@@ -233,6 +237,7 @@ function CyberGameContent() {
   const multiplayerEngine = useMultiplayerGameEngine({
     gameId: shouldConnectMultiplayer ? (multiplayerGameInfo?.gameId || '') : '',
     playerId: shouldConnectMultiplayer ? playerId : '',
+    walletAddress: shouldConnectMultiplayer ? walletAddress : undefined,
   });
 
   // ============================================================================
@@ -400,13 +405,21 @@ function CyberGameContent() {
                 <GameCanvas
                   ref={gameCanvasRef}
                   getBodies={getBodies}
-                  getEffectiveRadii={!isInMultiplayerGameplay ? aiEngine.getEffectiveRadii ?? undefined : undefined}
+                  getEffectiveRadii={
+                    isInMultiplayerGameplay
+                      ? multiplayerEngine.getEffectiveRadii
+                      : aiEngine.getEffectiveRadii ?? undefined
+                  }
                   activeModifierType={
                     isInMultiplayerGameplay
                       ? multiplayerEngine.activeModifier?.type ?? null
                       : localChaosModifier?.type ?? null
                   }
-                  isPuckFrozen={!isInMultiplayerGameplay ? aiEngine.isPuckFrozen : undefined}
+                  isPuckFrozen={
+                    isInMultiplayerGameplay
+                      ? multiplayerEngine.isPuckFrozen
+                      : aiEngine.isPuckFrozen
+                  }
                 />
 
                 {/* Chaos modifier HUD (both AI and multiplayer) */}
@@ -446,6 +459,7 @@ function CyberGameContent() {
                     finalScore={multiplayerEngine.gameState?.score || null}
                     rematchState={multiplayerEngine.rematchState}
                     opponentExited={multiplayerEngine.opponentExited}
+                    txDigest={multiplayerEngine.txDigest}
                     onPlayAgain={multiplayerEngine.sendRematchRequest}
                     onExit={multiplayerEngine.sendPlayerExit}
                     onResetGame={resetGame}

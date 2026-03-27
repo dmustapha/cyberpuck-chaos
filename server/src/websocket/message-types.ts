@@ -38,6 +38,7 @@ export interface JoinRoomMessage {
   type: 'join-room';
   gameId: string;
   playerId: string;
+  walletAddress?: string;
 }
 
 export interface PaddleMoveMessage {
@@ -120,6 +121,11 @@ export interface StateUpdateMessage {
   paddle2: PaddleState;
   score: Score;
   timestamp: number;
+  // Modifier-affected radii and freeze state (optional, backward-compatible)
+  puckRadius?: number;
+  paddle1Radius?: number;
+  paddle2Radius?: number;
+  puckFrozen?: boolean;
 }
 
 export interface GoalMessage {
@@ -189,6 +195,11 @@ export interface OpponentExitedMessage {
   type: 'opponent-exited';
 }
 
+export interface TxRecordedMessage {
+  type: 'tx-recorded';
+  txDigest: string;
+}
+
 // === Chaos Agent Messages ===
 export interface ModifierAppliedServerMessage {
   type: 'MODIFIER_APPLIED';
@@ -226,6 +237,7 @@ export type ServerMessage =
   | RematchAcceptedMessage
   | RematchDeclinedMessage
   | OpponentExitedMessage
+  | TxRecordedMessage
   | ModifierAppliedServerMessage
   | ModifierExpiredServerMessage;
 
@@ -474,6 +486,7 @@ export const SERVER_MESSAGE_TYPES = [
   'opponent-exited',
   'MODIFIER_APPLIED',
   'MODIFIER_EXPIRED',
+  'tx-recorded',
 ] as const;
 
 export type ClientMessageType = (typeof CLIENT_MESSAGE_TYPES)[number];

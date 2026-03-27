@@ -5,17 +5,24 @@ import { Transaction } from '@onelabs/sui/transactions';
 import { Ed25519Keypair } from '@onelabs/sui/keypairs/ed25519';
 import { MODIFIER_TYPE_ENCODING, TARGET_ENCODING } from '../types/shared';
 
-const RPC_URL =
-  process.env.ONECHAIN_RPC_URL ?? 'https://rpc-testnet.onelabs.cc:443';
-const PACKAGE_ID =
-  process.env.CHAOS_PUCK_PACKAGE_ID ?? 'DEPLOY_AND_RECORD_ADDRESS_HERE';
+const RECORDING_TIMEOUT_MS = 15_000;
+
+// NOTE: These are functions, not constants, because dotenv.config() runs AFTER
+// ESM imports evaluate their top-level code. Reading process.env at call time
+// ensures the values are available.
+function getRpcUrl(): string {
+  return process.env.ONECHAIN_RPC_URL ?? 'https://rpc-testnet.onelabs.cc:443';
+}
+function getPackageId(): string {
+  return process.env.CHAOS_PUCK_PACKAGE_ID ?? 'DEPLOY_AND_RECORD_ADDRESS_HERE';
+}
 
 export class OnChainService {
   private client: SuiClient;
   private keypair: Ed25519Keypair | null = null;
 
   constructor() {
-    this.client = new SuiClient({ url: RPC_URL });
+    this.client = new SuiClient({ url: getRpcUrl() });
 
     const privKey = process.env.SERVER_PRIVATE_KEY;
     if (privKey) {
@@ -27,7 +34,8 @@ export class OnChainService {
           this.keypair.getPublicKey().toSuiAddress(),
         );
       } catch (err) {
-        console.error('[OnChain] Invalid SERVER_PRIVATE_KEY:', err);
+        console.error('[OnChain] Invalid SERVER_PRIVATE_KEY:', (err as Error).message);
+        console.error('[OnChain] Full error:', err);
       }
     } else {
       console.warn(
@@ -39,7 +47,7 @@ export class OnChainService {
   get enabled(): boolean {
     return (
       this.keypair !== null &&
-      PACKAGE_ID !== 'DEPLOY_AND_RECORD_ADDRESS_HERE'
+      getPackageId() !== 'DEPLOY_AND_RECORD_ADDRESS_HERE'
     );
   }
 
@@ -57,7 +65,7 @@ export class OnChainService {
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::chaos_puck::record_match`,
+        target: `${getPackageId()}::chaos_puck::record_match`,
         arguments: [
           tx.pure.address(data.player1),
           tx.pure.address(data.player2),
@@ -69,11 +77,16 @@ export class OnChainService {
         ],
       });
 
-      const result = await this.client.signAndExecuteTransaction({
-        transaction: tx,
-        signer: this.keypair,
-        options: { showEvents: true, showEffects: true },
-      });
+      const result = await Promise.race([
+        this.client.signAndExecuteTransaction({
+          transaction: tx,
+          signer: this.keypair,
+          options: { showEvents: true, showEffects: true },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('signAndExecuteTransaction timeout')), RECORDING_TIMEOUT_MS)
+        ),
+      ]);
 
       // Extract MatchRecord object ID from events
       const matchEvent = result.events?.find((e) =>
@@ -104,7 +117,7 @@ export class OnChainService {
       const reasonBytes = Array.from(new TextEncoder().encode(data.reason));
 
       tx.moveCall({
-        target: `${PACKAGE_ID}::chaos_puck::record_decision`,
+        target: `${getPackageId()}::chaos_puck::record_decision`,
         // WARNING: match_id is type ID in Move. Passing as address since ID wraps address.
         // [UNVERIFIED] — ID serialization via tx.pure.address() may need BCS approach
         arguments: [
@@ -124,10 +137,15 @@ export class OnChainService {
         ],
       });
 
-      const result = await this.client.signAndExecuteTransaction({
-        transaction: tx,
-        signer: this.keypair,
-      });
+      const result = await Promise.race([
+        this.client.signAndExecuteTransaction({
+          transaction: tx,
+          signer: this.keypair,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('signAndExecuteTransaction timeout')), RECORDING_TIMEOUT_MS)
+        ),
+      ]);
 
       console.log('[OnChain] Decision recorded:', result.digest);
       return result.digest;
@@ -153,9 +171,9 @@ export class OnChainService {
       reason: string;
       timestamp: number;
     }>,
-  ): Promise<void> {
+  ): Promise<{ digest: string; matchObjectId: string } | null> {
     const matchResult = await this.recordMatch(matchData);
-    if (!matchResult) return;
+    if (!matchResult) return null;
 
     // Record each AI decision with the match ID
     for (const decision of decisions) {
@@ -164,5 +182,7 @@ export class OnChainService {
         ...decision,
       });
     }
+
+    return matchResult;
   }
 }

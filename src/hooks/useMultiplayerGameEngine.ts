@@ -40,6 +40,7 @@ interface MultiplayerBodies {
 interface UseMultiplayerGameEngineOptions {
   gameId: string;
   playerId: string;
+  walletAddress?: string;
 }
 
 /**
@@ -76,7 +77,7 @@ function rotatePoint(x: number, y: number): { x: number; y: number } {
   };
 }
 
-export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGameEngineOptions) {
+export function useMultiplayerGameEngine({ gameId, playerId, walletAddress }: UseMultiplayerGameEngineOptions) {
   // Shared WebSocket connection from context
   const {
     isConnected,
@@ -93,6 +94,9 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
     rematchState,
     opponentExited,
     activeModifier,
+    goalScorer,
+    clearGoalScorer,
+    txDigest,
     sendPaddleMove,
     sendPauseRequest,
     sendResumeRequest,
@@ -107,9 +111,9 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
   // Connect when gameId and playerId are available
   useEffect(() => {
     if (gameId && playerId) {
-      connect(gameId, playerId);
+      connect(gameId, playerId, walletAddress);
     }
-  }, [gameId, playerId, connect]);
+  }, [gameId, playerId, walletAddress, connect]);
 
   // Interpolation for smoother visuals
   const puckInterpolation = useInterpolation({ delayMs: 33, maxExtrapolateMs: 50 }); // ~2 frames delay
@@ -131,6 +135,8 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
   const setPageState = useGameStore((s) => s.setPageState);
   const setCountdown = useGameStore((s) => s.setCountdown);
   const storeStatus = useGameStore((s) => s.status);
+  const setMultiplayerGoal = useGameStore((s) => s.setMultiplayerGoal);
+  const resumeAfterGoal = useGameStore((s) => s.resumeAfterGoal);
 
   // Update local paddle position based on player number
   // Both players see their paddle at the bottom of THEIR view
@@ -277,6 +283,25 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
     [playerNumber, sendPaddleMove]
   );
 
+  // Trigger goal celebration when server reports a goal
+  // Reset goalScorer to null after consuming so consecutive goals by the same player re-trigger
+  useEffect(() => {
+    if (goalScorer !== null) {
+      setMultiplayerGoal(goalScorer);
+      clearGoalScorer();
+    }
+  }, [goalScorer, setMultiplayerGoal, clearGoalScorer]);
+
+  // Resume after goal celebration (mirrors AI mode's pattern in useGameEngine.ts)
+  useEffect(() => {
+    if (storeStatus === 'goal') {
+      const timer = setTimeout(() => {
+        resumeAfterGoal();
+      }, PHYSICS_CONFIG.game.goalPauseMs);
+      return () => clearTimeout(timer);
+    }
+  }, [storeStatus, resumeAfterGoal]);
+
   // Get bodies for rendering (compatible with GameCanvas interface)
   // For Player 2: transforms coordinates so their paddle appears at bottom
   const getBodies = useCallback((): MultiplayerBodies | null => {
@@ -348,6 +373,27 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
     };
   }, [playerNumber, opponentPaddleInterp, puckInterpolation]);
 
+  // Get effective radii from server state (modifier-affected)
+  // For Player 2: swap paddle radii to match the perspective swap in getBodies
+  const getEffectiveRadii = useCallback(() => {
+    const state = lastServerStateRef.current;
+    const isPlayer2 = playerNumber === 2;
+    return {
+      puck: state?.puckRadius ?? PHYSICS_CONFIG.puck.radius,
+      paddle1: isPlayer2
+        ? (state?.paddle2Radius ?? PHYSICS_CONFIG.paddle.radius)  // Our paddle (server's paddle2)
+        : (state?.paddle1Radius ?? PHYSICS_CONFIG.paddle.radius),
+      paddle2: isPlayer2
+        ? (state?.paddle1Radius ?? PHYSICS_CONFIG.paddle.radius)  // Opponent (server's paddle1)
+        : (state?.paddle2Radius ?? PHYSICS_CONFIG.paddle.radius),
+    };
+  }, [playerNumber]);
+
+  // Check if puck is frozen (server-side freeze state)
+  const isPuckFrozen = useCallback(() => {
+    return lastServerStateRef.current?.puckFrozen ?? false;
+  }, []);
+
   // Reset puck (clear interpolation buffers)
   const resetPuck = useCallback(() => {
     // Server is authoritative for physics, but clear local interpolation buffers
@@ -381,10 +427,15 @@ export function useMultiplayerGameEngine({ gameId, playerId }: UseMultiplayerGam
     rematchState,
     opponentExited,
 
+    // On-chain recording
+    txDigest,
+
     // Rendering interface (compatible with useGameEngine)
     getBodies,
     movePaddle,
     resetPuck,
+    getEffectiveRadii,
+    isPuckFrozen,
 
     // Actions
     sendPaddleMove,

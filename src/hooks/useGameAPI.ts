@@ -32,12 +32,6 @@ export interface CreateGameParams {
   roomCode: string;
 }
 
-export interface SubmitResultParams {
-  gameId: string;
-  player1Score: number;
-  player2Score: number;
-}
-
 export interface UseGameAPIReturn {
   // State
   isReady: boolean;
@@ -50,7 +44,6 @@ export interface UseGameAPIReturn {
   // Game Operations
   createGame: (stake: string, roomCode: string) => Promise<string>;
   joinGame: (gameIdOrRoomCode: string) => Promise<{ gameId: string; game: Game }>;
-  submitResult: (gameId: string, player1Score: number, player2Score: number) => Promise<void>;
   cancelGame: (gameId: string) => Promise<void>;
 
   // Queries
@@ -91,7 +84,7 @@ export function useGameAPI(): UseGameAPIReturn {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isServerReady, setIsServerReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const isConnected = false; // Stub — will use OneChain wallet in Phase 4
+  const isConnected = isServerReady; // Server reachable = connected
 
   // Check server health on mount
   useEffect(() => {
@@ -149,28 +142,6 @@ export function useGameAPI(): UseGameAPIReturn {
       return { gameId: result.gameId, game: toGame(result.game) };
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to join game');
-      setError(error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Submit game result
-  const submitResult = useCallback(async (
-    gameId: string,
-    player1Score: number,
-    player2Score: number
-  ): Promise<void> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      console.log('[useGameAPI] Submitting result:', { gameId, player1Score, player2Score });
-      await gameAPI.submitResult(gameId, player1Score, player2Score);
-      console.log('[useGameAPI] Result submitted');
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to submit result');
       setError(error);
       throw error;
     } finally {
@@ -268,7 +239,6 @@ export function useGameAPI(): UseGameAPIReturn {
     // Game Operations
     createGame,
     joinGame,
-    submitResult,
     cancelGame,
 
     // Queries

@@ -8,6 +8,13 @@ import { OnChainService } from './on-chain';
 import type { ChaosInput } from '../types/shared';
 import type { PhysicsBodies } from '../chaos/executor';
 
+const ZERO_ADDRESS = '0x' + '0'.repeat(64);
+
+function normalizeAddress(address: string | undefined): string {
+  if (!address || !address.startsWith('0x')) return ZERO_ADDRESS;
+  return address;
+}
+
 export class GameServer {
   // === Chaos Agent Integration ===
   private chaosPerRoom = new Map<string, ChaosMiddleware>();
@@ -35,7 +42,7 @@ export class GameServer {
   // Disconnect grace period for pause-on-disconnect
   private readonly DISCONNECT_GRACE_PERIOD_MS = 30000; // 30 seconds
 
-  async handleJoinRoom(ws: WebSocket, gameId: string, playerId: string): Promise<void> {
+  async handleJoinRoom(ws: WebSocket, gameId: string, playerId: string, walletAddress?: string): Promise<void> {
     // 1. Check if room exists, if not create it
     let room = roomManager.getRoom(gameId);
     if (!room) {
@@ -43,7 +50,7 @@ export class GameServer {
     }
 
     // 2. Join the room
-    const result = roomManager.joinRoom(gameId, playerId, ws);
+    const result = roomManager.joinRoom(gameId, playerId, ws, walletAddress);
     if (!result.success) {
       try {
         ws.send(JSON.stringify({ type: 'error', code: 'JOIN_FAILED', message: result.error }));
@@ -83,7 +90,12 @@ export class GameServer {
       }
       console.log(`[GameServer] Player ${playerId} reconnected during countdown, sent current state (${currentCountdown}s)`);
     } else if (room.state === 'playing' && room.physicsEngine) {
-      // Send current game state immediately so they can catch up
+      // Sync modifier radii before sending state so reconnecting player sees correct sizes
+      const roomChaos = this.chaosPerRoom.get(gameId);
+      if (roomChaos) {
+        room.physicsEngine.setCurrentRadii(roomChaos.getExecutor().getCurrentRadii());
+        room.physicsEngine.setMaxSpeedOverride(roomChaos.getExecutor().getEffectiveMaxSpeed());
+      }
       const state = room.physicsEngine.getState();
       try {
         ws.send(JSON.stringify({ type: 'opponent-joined', opponentId: 'opponent' }));
@@ -358,10 +370,17 @@ export class GameServer {
     // Set room state back to playing
     roomManager.setRoomState(gameId, 'playing');
 
-    // Restart broadcast loop
+    // Restart broadcast loop with chaos sync
     const broadcastMs = 1000 / PHYSICS_CONFIG.game.broadcastRate;
     room.broadcastInterval = setInterval(() => {
-      const state = room.physicsEngine!.getState();
+      const physics = room.physicsEngine!;
+      const roomChaos = this.chaosPerRoom.get(gameId);
+      if (roomChaos) {
+        const executor = roomChaos.getExecutor();
+        physics.setCurrentRadii(executor.getCurrentRadii());
+        physics.setMaxSpeedOverride(executor.getEffectiveMaxSpeed());
+      }
+      const state = physics.getState();
       roomManager.broadcast(gameId, { type: 'state-update', ...state });
     }, broadcastMs);
 
@@ -592,8 +611,6 @@ export class GameServer {
     // Start broadcast loop (30Hz) with chaos integration
     const broadcastMs = 1000 / PHYSICS_CONFIG.game.broadcastRate;
     room.broadcastInterval = setInterval(() => {
-      const state = physics.getState();
-
       // === Chaos Agent: tick ===
       const roomChaos = this.chaosPerRoom.get(gameId);
       if (roomChaos) {
@@ -601,8 +618,18 @@ export class GameServer {
           puck: physics.getPuckBody(),
           paddles: [physics.getPaddle1Body(), physics.getPaddle2Body()],
         };
-        const chaosInput = this.buildChaosInput(gameId, state);
-        const chaosEvent = roomChaos.tick(bodies, chaosInput);
+
+        // Build chaos input from current state, then tick chaos
+        const preState = physics.getState();
+        const chaosInput = this.buildChaosInput(gameId, preState);
+        const chaosEvent = roomChaos.tick(bodies, chaosInput, physics.isPuckFrozen());
+
+        // Sync modifier radii + speed cap AFTER chaos tick (so expiry is reflected immediately)
+        const executor = roomChaos.getExecutor();
+        physics.setCurrentRadii(executor.getCurrentRadii());
+        physics.setMaxSpeedOverride(executor.getEffectiveMaxSpeed());
+
+        const state = physics.getState();
 
         if (chaosEvent?.type === 'modifier_applied' && chaosEvent.modifier) {
           roomManager.broadcast(gameId, {
@@ -625,9 +652,12 @@ export class GameServer {
             modifierId: chaosEvent.modifierId,
           });
         }
-      }
 
-      roomManager.broadcast(gameId, { type: 'state-update', ...state });
+        roomManager.broadcast(gameId, { type: 'state-update', ...state });
+      } else {
+        const state = physics.getState();
+        roomManager.broadcast(gameId, { type: 'state-update', ...state });
+      }
     }, broadcastMs);
   }
 
@@ -683,20 +713,22 @@ export class GameServer {
     this.countdownValues.delete(gameId);
 
     roomManager.setRoomState(gameId, 'ended');
+
+    // Broadcast game-over IMMEDIATELY — don't block on on-chain recording
     roomManager.broadcast(gameId, { type: 'game-over', winner, finalScore: score });
 
-    // === Chaos Agent: end match + on-chain recording ===
+    // === Chaos Agent: end match + on-chain recording (async, non-blocking) ===
     const chaos = this.chaosPerRoom.get(gameId);
     if (chaos) {
       const { decisions, modifierCount } = chaos.onMatchEnd();
 
-      // Record on-chain (async, non-blocking)
       if (this.onChain.enabled) {
         const matchStart = this.matchStartTimes.get(gameId) ?? Date.now();
+        const wallets = roomManager.getPlayerWallets(gameId);
         this.onChain.recordMatchWithDecisions(
           {
-            player1: '0x0', // Wallet addresses wired in Phase 4
-            player2: '0x0',
+            player1: normalizeAddress(wallets.player1),
+            player2: normalizeAddress(wallets.player2),
             score1: score.player1,
             score2: score.player2,
             durationSeconds: Math.floor((Date.now() - matchStart) / 1000),
@@ -711,7 +743,12 @@ export class GameServer {
               reason: d.decision.modifier!.reason,
               timestamp: Math.floor(d.timestamp / 1000),
             })),
-        ).catch((err) => console.error('[GameServer] On-chain recording failed:', err));
+        ).then((result) => {
+          if (result) {
+            // Send txDigest as follow-up to any still-connected players
+            roomManager.broadcast(gameId, { type: 'tx-recorded', txDigest: result.digest });
+          }
+        }).catch((err) => console.error('[GameServer] On-chain recording failed:', err));
       }
 
       // Clean up chaos state

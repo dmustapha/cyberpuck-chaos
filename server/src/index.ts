@@ -91,6 +91,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    onChainEnabled: onChainService.enabled,
   });
 });
 
@@ -335,6 +336,56 @@ app.post('/api/chaos/observe', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[ChaosAPI] observe failed:', err);
     res.status(500).json({ error: 'Chaos observation failed' });
+  }
+});
+
+// ============================================
+// On-Chain Match Recording (AI mode)
+// ============================================
+
+app.post('/api/record-match', async (req: Request, res: Response) => {
+  try {
+    const { playerWallet, score1, score2, durationSeconds, modifiersDeployed } = req.body;
+
+    if (typeof score1 !== 'number' || typeof score2 !== 'number' || score1 < 0 || score1 > 10 || score2 < 0 || score2 > 10) {
+      res.status(400).json({ error: 'Invalid scores: must be between 0 and 10' });
+      return;
+    }
+    if (typeof durationSeconds !== 'number' || durationSeconds <= 0) {
+      res.status(400).json({ error: 'Invalid duration' });
+      return;
+    }
+
+    const ZERO_ADDRESS = '0x' + '0'.repeat(64);
+    const isValidAddress = typeof playerWallet === 'string'
+      && playerWallet.startsWith('0x')
+      && playerWallet.length === 66;
+    const p1 = isValidAddress ? playerWallet : ZERO_ADDRESS;
+    const p2 = ZERO_ADDRESS; // AI opponent
+
+    const result = await onChainService.recordMatch({
+      player1: p1,
+      player2: p2,
+      score1,
+      score2,
+      durationSeconds,
+      modifiersDeployed: modifiersDeployed ?? 0,
+      timestamp: Math.floor(Date.now() / 1000),
+    });
+
+    if (!result) {
+      console.error('[API] record-match: recordMatch returned null. enabled=', onChainService.enabled);
+      res.status(500).json({ error: 'On-chain recording failed or disabled' });
+      return;
+    }
+
+    res.json({
+      digest: result.digest,
+      explorerUrl: `https://onescan.cc/testnet/tx/${result.digest}`,
+    });
+  } catch (err) {
+    console.error('[API] record-match failed:', err);
+    res.status(500).json({ error: 'Failed to record match on-chain' });
   }
 });
 
