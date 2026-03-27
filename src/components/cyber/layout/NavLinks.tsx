@@ -22,12 +22,46 @@ interface NavLinksProps {
   className?: string;
 }
 
+// SVG icon components for consistent cyber aesthetic
+const IconHome = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+const IconPlay = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
+const IconProfile = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+const IconRanks = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7" />
+    <path d="M4 22h16" />
+    <path d="M10 22V2h4v20" />
+    <path d="M6 22V10h12v12" />
+  </svg>
+);
+const IconSettings = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+  </svg>
+);
+
 const defaultLinks: NavLink[] = [
-  { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/game', label: 'Play', icon: '🎮' },
-  { href: '/profile', label: 'Profile', icon: '👤' },
-  { href: '/leaderboard', label: 'Ranks', icon: '🏆' },
-  { href: '/settings', label: 'Settings', icon: '⚙️' },
+  { href: '/', label: 'Home', icon: <IconHome /> },
+  { href: '/game', label: 'Play', icon: <IconPlay /> },
+  { href: '/profile', label: 'Profile', icon: <IconProfile /> },
+  { href: '/leaderboard', label: 'Ranks', icon: <IconRanks /> },
+  { href: '/settings', label: 'Settings', icon: <IconSettings /> },
 ];
 
 const sizeConfig = {

@@ -8,7 +8,7 @@
  * - Exit (return to main menu)
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { cyberTheme } from '@/lib/cyber/theme';
 import { HUDPanel } from '../ui/HUDPanel';
@@ -43,6 +43,15 @@ export function MultiplayerGameOverModal({
   className = '',
 }: MultiplayerGameOverModalProps) {
   const router = useRouter();
+
+  // Show "Recording on-chain..." for up to 8s after modal appears, then give up
+  const [txWaiting, setTxWaiting] = useState(true);
+  useEffect(() => {
+    if (txDigest) { setTxWaiting(false); return; }
+    if (!isVisible) { setTxWaiting(true); return; }
+    const t = setTimeout(() => setTxWaiting(false), 8000);
+    return () => clearTimeout(t);
+  }, [isVisible, txDigest]);
 
   // Don't render if not visible or missing data
   if (!isVisible || winner === null || playerNumber === null) {
@@ -230,7 +239,15 @@ export function MultiplayerGameOverModal({
           </div>
         )}
 
-        {/* On-chain recording link */}
+        {/* On-chain recording status */}
+        {!txDigest && txWaiting && (
+          <div
+            className="text-center mb-4 text-sm animate-pulse"
+            style={{ color: cyberTheme.colors.primary }}
+          >
+            Recording on-chain...
+          </div>
+        )}
         {txDigest && (
           <div className="text-center mb-4">
             <a

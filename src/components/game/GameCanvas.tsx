@@ -348,6 +348,12 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
         paddle2: PHYSICS_CONFIG.paddle.radius,
       };
       const target = getEffectiveRadii?.() ?? defaults;
+      // Log radii every ~2s (120 frames) when they differ from defaults
+      if (Math.round(now / 2000) !== Math.round((now - 16) / 2000)) {
+        if (target.paddle1 !== defaults.paddle1 || target.paddle2 !== defaults.paddle2 || target.puck !== defaults.puck) {
+          console.log('[GameCanvas] Effective radii:', target, 'visual:', { ...visualRadiiRef.current });
+        }
+      }
       for (const key of ['puck', 'paddle1', 'paddle2'] as const) {
         const diff = target[key] - visualRadiiRef.current[key];
         if (Math.abs(diff) < SNAP) {

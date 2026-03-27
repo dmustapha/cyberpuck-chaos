@@ -92,6 +92,12 @@ export class ModifierExecutor {
           x: puck.velocity.x * intensity,
           y: puck.velocity.y * intensity,
         });
+        // Set effective max speed so engine caps at the modifier-adjusted level
+        this.effectiveMaxSpeed = PHYSICS_CONFIG.puckMaxSpeed * intensity;
+        // For boost: reduce frictionAir so drag doesn't kill the velocity within frames
+        if (modifier.variation === 'boost') {
+          puck.frictionAir = PHYSICS_CONFIG.puckFrictionAir * 0.25;
+        }
         break;
       }
 
@@ -158,9 +164,12 @@ export class ModifierExecutor {
     }
 
     // Enforce velocity cap — prevents spikes from scale collisions near walls
+    // Use effectiveMaxSpeed if a puck_speed modifier is active, otherwise 1.5x default
     const pv = bodies.puck.velocity;
     const speed = Math.sqrt(pv.x * pv.x + pv.y * pv.y);
-    const maxSpeed = PHYSICS_CONFIG.puckMaxSpeed * 1.5;
+    const maxSpeed = this.effectiveMaxSpeed != null
+      ? this.effectiveMaxSpeed * 1.1  // Small headroom above modifier cap (engine owns the hard cap)
+      : PHYSICS_CONFIG.puckMaxSpeed * 1.5;
     if (speed > maxSpeed) {
       const scale = maxSpeed / speed;
       Body.setVelocity(bodies.puck, { x: pv.x * scale, y: pv.y * scale });
@@ -199,16 +208,33 @@ export class ModifierExecutor {
         break;
       }
 
-      // puck_speed: no restore — velocity changes naturally during gameplay
+      // puck_speed: restore frictionAir and clear the speed cap override
+      case 'puck_speed':
+        bodies.puck.frictionAir = PHYSICS_CONFIG.puckFrictionAir;
+        this.effectiveMaxSpeed = null;
+        break;
       // goal_width: client restores visual markers
       // invisible_puck: client restores rendering
     }
+  }
+
+  /** Current radii (tracks modifier scaling, avoids float drift) */
+  getCurrentRadii(): { puck: number; paddle1: number; paddle2: number } {
+    return { ...this.trueRadii };
+  }
+
+  /** Effective max speed when puck_speed modifier is active */
+  private effectiveMaxSpeed: number | null = null;
+
+  getEffectiveMaxSpeed(): number | null {
+    return this.effectiveMaxSpeed;
   }
 
   reset(): void {
     this.activeModifier = null;
     this.transitionProgress = 0;
     this.reversing = false;
+    this.effectiveMaxSpeed = null;
     this.trueRadii = {
       puck: PHYSICS_CONFIG.puckRadius as number,
       paddle1: PHYSICS_CONFIG.paddleRadius as number,

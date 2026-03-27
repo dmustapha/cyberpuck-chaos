@@ -37,13 +37,14 @@ export function Logo({
     >
       {/* Icon */}
       <span
-        className={`${sizes.icon} ${animated ? 'animate-pulse' : ''}`}
+        className={`${animated ? 'animate-pulse' : ''}`}
         style={{
-          color: theme.colors.primary,
-          textShadow: `0 0 10px ${theme.colors.primary}`,
+          filter: `drop-shadow(0 0 6px ${theme.colors.primary})`,
         }}
       >
-        ⚡
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.colors.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" />
+        </svg>
       </span>
 
       {/* Text */}
@@ -55,14 +56,14 @@ export function Logo({
             textShadow: `0 0 10px ${theme.colors.primary}40`,
           }}
         >
-          AIR
-          <span style={{ color: theme.colors.primary }}> HOCKEY</span>
+          CYBER
+          <span style={{ color: theme.colors.primary }}>PUCK</span>
         </span>
         <span
           className="text-xs tracking-[0.3em] uppercase"
           style={{ color: theme.colors.text.muted }}
         >
-          {theme._theme.name.toUpperCase()}
+          CHAOS
         </span>
       </div>
     </div>

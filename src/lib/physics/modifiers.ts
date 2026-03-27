@@ -62,12 +62,15 @@ export function applyModifier(
     activeModifier: { type: modifier.type, variation: modifier.variation, target: modifier.target },
   };
 
+  console.log('[Modifiers] applyModifier:', modifier.type, modifier.variation, 'target:', modifier.target, 'intensity:', modifier.intensity);
+
   switch (modifier.type) {
     case 'puck_speed': {
       if (modifier.variation === 'boost') {
         newState.activeMaxSpeed = puckConfig.maxSpeed * 2.5;
         // Reduce air friction so puck sustains high speed
         bodies.puck.frictionAir = puckConfig.frictionAir * 0.25;
+        console.log('[Modifiers] Speed boost: maxSpeed =', newState.activeMaxSpeed, 'frictionAir =', bodies.puck.frictionAir);
         // Scale current velocity up — big kick
         const speed = Math.sqrt(bodies.puck.velocity.x ** 2 + bodies.puck.velocity.y ** 2);
         if (speed > 0.5) {
@@ -97,6 +100,7 @@ export function applyModifier(
       const targetBody = modifier.target === 'player1' ? bodies.paddle1 : bodies.paddle2;
       const factor = modifier.variation === 'shrink' ? 0.6 : 1.5;
       const scaleFactor = (paddleConfig.radius * factor) / clean.trueRadii[targetKey];
+      console.log('[Modifiers] Paddle size:', targetKey, 'factor:', factor, 'scaleFactor:', scaleFactor, 'newRadius:', paddleConfig.radius * factor, 'prevRadius:', clean.trueRadii[targetKey]);
       Body.scale(targetBody, scaleFactor, scaleFactor);
       newState.trueRadii[targetKey] = paddleConfig.radius * factor;
       (targetBody as any).circleRadius = paddleConfig.radius * factor;
@@ -128,6 +132,7 @@ export function revertModifier(
   state: ModifierState,
   bodies: Bodies,
 ): ModifierState {
+  console.log('[Modifiers] revertModifier:', state.activeModifier?.type, 'radii before revert:', { ...state.trueRadii });
   const { puck: puckConfig, paddle: paddleConfig } = PHYSICS_CONFIG;
 
   // Restore puck frictionAir (may have been modified by speed boost)

@@ -20,9 +20,20 @@ interface Feature {
   subtitle: string;
   description: string;
   stats: string[];
-  icon: string;
+  icon: React.ReactNode;
   direction: 'left' | 'right' | 'top';
 }
+
+const iconProps = {
+  width: 48,
+  height: 48,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: colors.cyan,
+  strokeWidth: 1.5,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
 
 const features: Feature[] = [
   {
@@ -31,7 +42,13 @@ const features: Feature[] = [
     description:
       'Climb the ranks from Bronze to Master. Every match counts. Every victory matters. Prove your skills against the best.',
     stats: ['ELO TRACKING', 'TIER SYSTEM', 'LIVE RANKINGS'],
-    icon: '⚔️',
+    icon: (
+      <svg {...iconProps}>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill={`${colors.cyan}15`} />
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    ),
     direction: 'left',
   },
   {
@@ -40,7 +57,14 @@ const features: Feature[] = [
     description:
       '25+ achievements waiting to be claimed. Rare badges, special effects, and legendary titles for the most dedicated players.',
     stats: ['CHALLENGES', 'RARE UNLOCKS', 'PROGRESSION'],
-    icon: '🏆',
+    icon: (
+      <svg {...iconProps}>
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+        <path d="M4 22h16" />
+        <path d="M10 22V14.6a7 7 0 0 1-3.3-5.3L6 4h12l-.7 5.3A7 7 0 0 1 14 14.6V22" fill={`${colors.cyan}15`} />
+      </svg>
+    ),
     direction: 'top',
   },
   {
@@ -49,7 +73,13 @@ const features: Feature[] = [
     description:
       'Deep dive into your stats. Track accuracy, reaction time, and strategic patterns. AI-powered insights to elevate your game.',
     stats: ['REAL-TIME STATS', 'MATCH HISTORY', 'AI ANALYSIS'],
-    icon: '📊',
+    icon: (
+      <svg {...iconProps}>
+        <path d="M18 20V10" />
+        <path d="M12 20V4" />
+        <path d="M6 20v-6" />
+      </svg>
+    ),
     direction: 'right',
   },
 ];
@@ -227,9 +257,10 @@ const FeatureCard = ({
       <div className="relative z-10">
         {/* Icon */}
         <motion.div
-          className="text-6xl mb-4"
+          className="mb-4"
+          style={{ filter: `drop-shadow(0 0 8px ${colors.cyan}60)` }}
           animate={{
-            scale: [1, 1.2, 1],
+            scale: [1, 1.1, 1],
           }}
           transition={{
             duration: 2,

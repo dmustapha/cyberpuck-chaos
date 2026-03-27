@@ -714,18 +714,19 @@ export class GameServer {
 
     roomManager.setRoomState(gameId, 'ended');
 
-    // Broadcast game-over IMMEDIATELY — don't block on on-chain recording
-    roomManager.broadcast(gameId, { type: 'game-over', winner, finalScore: score });
-
-    // === Chaos Agent: end match + on-chain recording (async, non-blocking) ===
+    // === Chaos Agent: end match + on-chain recording ===
     const chaos = this.chaosPerRoom.get(gameId);
+    let txDigest: string | undefined;
+
     if (chaos) {
       const { decisions, modifierCount } = chaos.onMatchEnd();
 
       if (this.onChain.enabled) {
         const matchStart = this.matchStartTimes.get(gameId) ?? Date.now();
         const wallets = roomManager.getPlayerWallets(gameId);
-        this.onChain.recordMatchWithDecisions(
+
+        // Try to get txDigest within 5s so we can include it in game-over
+        const recordPromise = this.onChain.recordMatchWithDecisions(
           {
             player1: normalizeAddress(wallets.player1),
             player2: normalizeAddress(wallets.player2),
@@ -743,18 +744,35 @@ export class GameServer {
               reason: d.decision.modifier!.reason,
               timestamp: Math.floor(d.timestamp / 1000),
             })),
-        ).then((result) => {
+        );
+
+        try {
+          const result = await Promise.race([
+            recordPromise,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+          ]);
           if (result) {
-            // Send txDigest as follow-up to any still-connected players
-            roomManager.broadcast(gameId, { type: 'tx-recorded', txDigest: result.digest });
+            txDigest = result.digest;
+          } else {
+            // Timed out — send follow-up tx-recorded when it eventually resolves
+            recordPromise.then((lateResult) => {
+              if (lateResult) {
+                roomManager.broadcast(gameId, { type: 'tx-recorded', txDigest: lateResult.digest });
+              }
+            }).catch(() => {}); // Silently ignore late failures
           }
-        }).catch((err) => console.error('[GameServer] On-chain recording failed:', err));
+        } catch (err) {
+          console.error('[GameServer] On-chain recording failed:', err);
+        }
       }
 
       // Clean up chaos state
       this.chaosPerRoom.delete(gameId);
       this.matchStartTimes.delete(gameId);
     }
+
+    // Broadcast game-over with txDigest if available
+    roomManager.broadcast(gameId, { type: 'game-over', winner, finalScore: score, ...(txDigest ? { txDigest } : {}) });
 
     // Clean up state locks
     this.endingGames.delete(gameId);

@@ -36,6 +36,10 @@ export function PostMatchScreen({ className = '' }: PostMatchScreenProps) {
   const resetGame = useGameStore((state) => state.resetGame);
   const startGame = useGameStore((state) => state.startGame);
 
+  // On-chain TX status
+  const txExplorerUrl = useGameStore((state) => state.txExplorerUrl);
+  const txPending = useGameStore((state) => state.txPending);
+
   const profile = usePlayerStore((state) => state.profile);
   const updateRank = usePlayerStore((state) => state.updateRank);
   const updateStats = usePlayerStore((state) => state.updateStats);
@@ -246,6 +250,29 @@ export function PostMatchScreen({ className = '' }: PostMatchScreenProps) {
               </span>
             </div>
           </div>
+
+          {/* On-chain recording status */}
+          {txPending && !txExplorerUrl && (
+            <div
+              className="text-center mb-4 text-sm animate-pulse"
+              style={{ color: cyberTheme.colors.primary }}
+            >
+              Recording on-chain...
+            </div>
+          )}
+          {txExplorerUrl && (
+            <div className="text-center mb-4">
+              <a
+                href={txExplorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm underline"
+                style={{ color: cyberTheme.colors.primary }}
+              >
+                Recorded on-chain →
+              </a>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="space-y-3">
@@ -477,6 +504,29 @@ export function PostMatchScreen({ className = '' }: PostMatchScreenProps) {
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* On-chain recording status */}
+        {txPending && !txExplorerUrl && (
+          <div
+            className="text-center mb-4 text-sm animate-pulse"
+            style={{ color: cyberTheme.colors.primary }}
+          >
+            Recording on-chain...
+          </div>
+        )}
+        {txExplorerUrl && (
+          <div className="text-center mb-4">
+            <a
+              href={txExplorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline"
+              style={{ color: cyberTheme.colors.primary }}
+            >
+              Recorded on-chain →
+            </a>
           </div>
         )}
 

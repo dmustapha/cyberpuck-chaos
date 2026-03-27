@@ -35,7 +35,7 @@ export function ArenaShowcase() {
 
   return (
     <section
-      className="relative px-4 py-32"
+      className="relative px-4 pt-6 pb-32"
       style={{ backgroundColor: cyberTheme.colors.bg.primary }}
     >
       <div className="max-w-6xl mx-auto">
@@ -47,9 +47,9 @@ export function ArenaShowcase() {
             color: cyberTheme.colors.primary,
             textShadow: `0 0 20px ${cyberTheme.colors.primary}`,
           }}
-          initial={{ opacity: 0, y: 80, scale: 0.9 }}
-          whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: false, amount: 0.8, margin: "-100px" }}
+          initial={{ y: 20, scale: 0.97 }}
+          whileInView={{ y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.6 }}
           transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           YOUR ARENA AWAITS
@@ -64,7 +64,7 @@ export function ArenaShowcase() {
           }}
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.8, margin: "-100px" }}
+          viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.6, delay: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           Step into the cyber arena where legends are born
@@ -80,7 +80,7 @@ export function ArenaShowcase() {
           }}
           initial={{ opacity: 0, y: 60, scale: 0.95 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: false, amount: 0.5, margin: "-50px" }}
+          viewport={{ once: true, amount: 0.15 }}
           transition={{ duration: 0.8, delay: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           <div
@@ -245,7 +245,7 @@ export function ArenaShowcase() {
           className="text-center mt-12"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.8, margin: "-50px" }}
+          viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           <div

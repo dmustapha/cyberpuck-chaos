@@ -21,7 +21,7 @@ interface GameReadyScreenProps {
 }
 
 export function GameReadyScreen({ className = '' }: GameReadyScreenProps) {
-  const { shortAddress } = useDynamicWallet();
+  const { address, shortAddress } = useDynamicWallet();
   const multiplayerGameInfo = useGameStore((s) => s.multiplayerGameInfo);
   const startMultiplayerMatch = useGameStore((s) => s.startMultiplayerMatch);
   const goToMultiplayerLobby = useGameStore((s) => s.goToMultiplayerLobby);
@@ -49,9 +49,9 @@ export function GameReadyScreen({ className = '' }: GameReadyScreenProps) {
   // Ensure connected to the game (connection should persist from WaitingScreen)
   useEffect(() => {
     if (gameId && playerId) {
-      connect(gameId, playerId);
+      connect(gameId, playerId, address);
     }
-  }, [gameId, playerId, connect]);
+  }, [gameId, playerId, address, connect]);
 
   // Debug: Log all context state changes
   useEffect(() => {
@@ -125,7 +125,12 @@ export function GameReadyScreen({ className = '' }: GameReadyScreenProps) {
       <HUDPanel className="relative z-10 w-full max-w-lg" variant="glow" padding="lg">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">⚔️</div>
+          <div className="mb-4 flex justify-center">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 10px ${cyberTheme.colors.primary}60)` }}>
+              <path d="M12 2L4 7v6c0 5 3.5 9.74 8 11 4.5-1.26 8-6 8-11V7l-8-5z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          </div>
           <h1
             className="text-2xl font-black uppercase tracking-wider mb-2"
             style={{
@@ -184,8 +189,11 @@ export function GameReadyScreen({ className = '' }: GameReadyScreenProps) {
               boxShadow: isConnected ? cyberTheme.shadows.glow(cyberTheme.colors.success) : 'none',
             }}
           >
-            <div className="text-4xl mb-3">
-              {playerNumber === 1 ? '👑' : '🎮'}
+            <div className="mb-3 flex justify-center">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.player.you} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 6px ${cyberTheme.colors.player.you}60)` }}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
             </div>
             <div
               className="text-xs uppercase tracking-wider mb-2"
@@ -219,11 +227,11 @@ export function GameReadyScreen({ className = '' }: GameReadyScreenProps) {
               boxShadow: opponentJoined ? cyberTheme.shadows.glow(cyberTheme.colors.success) : 'none',
             }}
           >
-            <div
-              className="text-4xl mb-3"
-              style={{ filter: opponentJoined ? 'none' : 'grayscale(1) opacity(0.5)' }}
-            >
-              {playerNumber === 1 ? '🎮' : '👑'}
+            <div className="mb-3 flex justify-center" style={{ opacity: opponentJoined ? 1 : 0.4 }}>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.player.opponent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: opponentJoined ? `drop-shadow(0 0 6px ${cyberTheme.colors.player.opponent}60)` : 'none' }}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
             </div>
             <div
               className="text-xs uppercase tracking-wider mb-2"

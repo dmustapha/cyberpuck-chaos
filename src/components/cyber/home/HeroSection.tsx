@@ -142,7 +142,7 @@ export function HeroSection({ className = '' }: HeroSectionProps) {
 
   return (
     <section
-      className={`relative min-h-screen flex items-center justify-center overflow-hidden ${className}`}
+      className={`relative h-[calc(100vh-132px)] flex items-center justify-center overflow-hidden ${className}`}
     >
       {/* Radial gradient overlay */}
       <motion.div
@@ -172,21 +172,22 @@ export function HeroSection({ className = '' }: HeroSectionProps) {
               textShadow: `0 0 20px ${cyberTheme.colors.primary}60`,
             }}
           >
-            {/* CYBER text with slide-in */}
+            {/* CYBERPUCK text with slide-in */}
             <motion.span
               className="inline-block"
               variants={glitchVariants}
             >
-              CYBER
-            </motion.span>{' '}
+              CYBERPUCK
+            </motion.span>
+            <br />
 
-            {/* AIR HOCKEY with color accent */}
+            {/* CHAOS with color accent */}
             <motion.span
               className="inline-block relative"
               style={{ color: cyberTheme.colors.primary }}
               variants={glitchVariants}
             >
-              AIR HOCKEY
+              CHAOS
 
               {/* Glitch layers */}
               {showGlitch && (
@@ -207,7 +208,7 @@ export function HeroSection({ className = '' }: HeroSectionProps) {
                       repeatDelay: 3,
                     }}
                   >
-                    AIR HOCKEY
+                    CHAOS
                   </motion.span>
                   <motion.span
                     className="absolute inset-0"
@@ -226,7 +227,7 @@ export function HeroSection({ className = '' }: HeroSectionProps) {
                       delay: 0.05,
                     }}
                   >
-                    AIR HOCKEY
+                    CHAOS
                   </motion.span>
                 </>
               )}

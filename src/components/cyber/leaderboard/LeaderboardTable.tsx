@@ -7,6 +7,7 @@
 import React from 'react';
 import { cyberTheme, getRankColor } from '@/lib/cyber/theme';
 import { HUDPanel } from '../ui/HUDPanel';
+import { TierIcon } from '../ui/TierIcon';
 import type { RankTier } from '@/types/player';
 
 interface LeaderboardEntry {
@@ -25,15 +26,6 @@ interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
   className?: string;
 }
-
-const tierIcons: Record<RankTier, string> = {
-  BRONZE: '🥉',
-  SILVER: '🥈',
-  GOLD: '🥇',
-  PLATINUM: '💎',
-  DIAMOND: '💠',
-  MASTER: '👑',
-};
 
 export function LeaderboardTable({ entries, className = '' }: LeaderboardTableProps) {
   return (
@@ -111,7 +103,7 @@ export function LeaderboardTable({ entries, className = '' }: LeaderboardTablePr
 
               {/* Player info */}
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-lg">{tierIcons[entry.tier]}</span>
+                <TierIcon tier={entry.tier} size={20} />
                 <span
                   className="font-bold truncate"
                   style={{

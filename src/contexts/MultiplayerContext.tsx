@@ -12,6 +12,19 @@
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import type { ActiveModifier, ModifierType, ModifierVariation, ModifierTarget } from '../types/game';
 
+// Intensity lookup matching server MODIFIER_DEFS
+const MODIFIER_INTENSITY: Record<string, number> = {
+  'puck_speed_boost': 1.5,
+  'puck_speed_slow': 0.35,
+  'paddle_size_shrink': 0.6,
+  'paddle_size_grow': 1.5,
+  'puck_size_grow': 2.0,
+  'puck_size_shrink': 0.5,
+  'invisible_puck_hidden': 1.0,
+  'goal_width_widen': 1.3,
+  'goal_width_narrow': 0.7,
+};
+
 // Server message types
 interface ServerGameState {
   puck: { x: number; y: number; vx: number; vy: number };
@@ -66,7 +79,7 @@ type ServerMessage =
   | { type: 'countdown'; seconds: number }
   | { type: 'state-update'; puck: ServerGameState['puck']; paddle1: ServerGameState['paddle1']; paddle2: ServerGameState['paddle2']; score: ServerGameState['score']; timestamp: number; puckRadius?: number; paddle1Radius?: number; paddle2Radius?: number; puckFrozen?: boolean }
   | { type: 'goal'; scorer: 1 | 2; newScore: { player1: number; player2: number } }
-  | { type: 'game-over'; winner: 1 | 2; finalScore: { player1: number; player2: number } }
+  | { type: 'game-over'; winner: 1 | 2; finalScore: { player1: number; player2: number }; txDigest?: string }
   | { type: 'error'; code: string; message: string }
   | { type: 'pong' }
   | { type: 'game-paused'; reason: PauseReason; pausedBy: 1 | 2 | null; canResume: boolean; gracePeriodMs?: number }
@@ -471,6 +484,10 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
               setGameStatus('ended');
               gameStatusRef.current = 'ended';
               setGameState((prev) => prev ? { ...prev, score: message.finalScore } : null);
+              // Read txDigest from game-over if server included it
+              if (message.txDigest) {
+                setTxDigest(message.txDigest);
+              }
               break;
 
             case 'error':
@@ -584,12 +601,14 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
             case 'MODIFIER_APPLIED': {
               const mod = message.modifier;
+              const intensityKey = mod.type === 'invisible_puck' ? 'invisible_puck_hidden' : `${mod.type}_${mod.variation}`;
+              const intensity = MODIFIER_INTENSITY[intensityKey] ?? 1;
               setActiveModifier({
                 id: mod.id,
                 type: mod.type,
                 variation: mod.variation,
                 target: mod.target,
-                intensity: 1,
+                intensity,
                 duration: mod.duration,
                 reason: mod.reason,
                 startTime: mod.startTime,

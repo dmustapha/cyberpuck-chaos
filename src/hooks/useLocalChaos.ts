@@ -9,6 +9,20 @@ import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import type { ActiveModifier, ModifierType, ModifierVariation, ModifierTarget } from '../types/game';
 
+// Intensity lookup matching server MODIFIER_DEFS — used so client-side physics
+// (paddle_size, puck_size) applies the correct scale factor
+const MODIFIER_INTENSITY: Record<string, number> = {
+  'puck_speed_boost': 1.5,
+  'puck_speed_slow': 0.35,
+  'paddle_size_shrink': 0.6,
+  'paddle_size_grow': 1.5,
+  'puck_size_grow': 2.0,
+  'puck_size_shrink': 0.5,
+  'invisible_puck_hidden': 1.0,
+  'goal_width_widen': 1.3,
+  'goal_width_narrow': 0.7,
+};
+
 // Base interval and score-based ramp
 const BASE_INTERVAL = 17000; // 10s active + 7s gap (~10s felt with LLM)
 const MEDIUM_INTERVAL = 14000; // 10s active + 4s gap (~7s felt with LLM)
@@ -106,12 +120,14 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
       trackRecent(mod.type);
 
       const now = Date.now();
+      const intensityKey = mod.type === 'invisible_puck' ? 'invisible_puck_hidden' : `${mod.type}_${mod.variation}`;
+      const intensity = MODIFIER_INTENSITY[intensityKey] ?? 1;
       const modifier: ActiveModifier = {
         id: `chaos-${now}`,
         type: mod.type,
         variation: mod.variation,
         target: mod.target,
-        intensity: 1,
+        intensity,
         duration: MODIFIER_DURATION,
         reason: mod.reason,
         startTime: now,

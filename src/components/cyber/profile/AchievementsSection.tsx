@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { cyberTheme } from '@/lib/cyber/theme';
 import { useAchievementStore } from '@/stores/achievementStore';
 import { HUDPanel } from '../ui/HUDPanel';
+import { AchievementIcon } from '../ui/AchievementIcon';
 import { Tabs } from '../ui/Tabs';
 import { ProgressBar } from '../ui/ProgressBar';
 import {
@@ -133,7 +134,11 @@ export function AchievementsSection({ className = '' }: AchievementsSectionProps
                     filter: isUnlocked ? 'none' : 'grayscale(100%)',
                   }}
                 >
-                  {achievement.hidden && !isUnlocked ? '❓' : achievement.icon}
+                  <AchievementIcon
+                    icon={achievement.hidden && !isUnlocked ? 'question' : achievement.icon}
+                    size={24}
+                    color={isUnlocked ? rarityColor : cyberTheme.colors.text.muted}
+                  />
                 </div>
 
                 {/* Info */}

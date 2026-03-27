@@ -51,8 +51,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Air Hockey | Cyber Arena',
-  description: 'Neon-powered air hockey game with multiplayer and AI modes',
+  title: 'CyberPuck Chaos',
+  description: 'On-chain air hockey with chaos modifiers, ranked ELO, and real-time multiplayer',
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },

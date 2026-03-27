@@ -8,6 +8,7 @@ import React from 'react';
 import type { RankTier, Division, PlayerRank } from '@/types/player';
 import { cyberTheme, getRankColor } from '@/lib/cyber/theme';
 import { formatRank } from '@/lib/cyber/elo';
+import { TierIcon } from './TierIcon';
 
 interface RankBadgeProps {
   rank: PlayerRank;
@@ -22,32 +23,23 @@ const sizeConfig = {
   sm: {
     padding: 'px-2 py-0.5',
     text: 'text-xs',
-    icon: 'text-sm',
+    iconSize: 14,
   },
   md: {
     padding: 'px-3 py-1',
     text: 'text-sm',
-    icon: 'text-base',
+    iconSize: 18,
   },
   lg: {
     padding: 'px-4 py-1.5',
     text: 'text-base',
-    icon: 'text-lg',
+    iconSize: 20,
   },
   xl: {
     padding: 'px-5 py-2',
     text: 'text-lg',
-    icon: 'text-2xl',
+    iconSize: 26,
   },
-};
-
-const tierIcons: Record<RankTier, string> = {
-  BRONZE: '🥉',
-  SILVER: '🥈',
-  GOLD: '🥇',
-  PLATINUM: '💎',
-  DIAMOND: '💠',
-  MASTER: '👑',
 };
 
 export function RankBadge({
@@ -73,7 +65,7 @@ export function RankBadge({
         fontFamily: cyberTheme.fonts.heading,
       }}
     >
-      <span className={sizes.icon}>{tierIcons[rank.tier]}</span>
+      <TierIcon tier={rank.tier} size={sizes.iconSize} />
       <span>{displayRank}</span>
       {showElo && (
         <span

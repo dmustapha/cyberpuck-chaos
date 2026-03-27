@@ -58,7 +58,10 @@ export function ProfileHeader({ className = '' }: ProfileHeaderProps) {
               boxShadow: `0 0 20px ${cyberTheme.colors.primary}40`,
             }}
           >
-            👤
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
           </div>
 
           {/* Info */}

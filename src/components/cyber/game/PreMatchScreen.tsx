@@ -25,17 +25,17 @@ const difficultyConfig: Record<
 > = {
   easy: {
     label: 'EASY',
-    description: 'Slower AI, good for practice',
+    description: 'Warm up the reflexes',
     color: '#22c55e',
   },
   medium: {
     label: 'MEDIUM',
-    description: 'Balanced gameplay',
+    description: 'Chaos gets real',
     color: '#fbbf24',
   },
   hard: {
     label: 'HARD',
-    description: 'Fast and aggressive AI',
+    description: 'No mercy. Pure chaos.',
     color: '#ef4444',
   },
 };
@@ -96,7 +96,10 @@ export function PreMatchScreen({ className = '' }: PreMatchScreenProps) {
                   border: `2px solid ${cyberTheme.colors.player.you}`,
                 }}
               >
-                👤
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.player.you} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               </div>
               <div>
                 <div

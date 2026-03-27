@@ -94,7 +94,12 @@ export function MultiplayerLobbyScreen({ className = '' }: MultiplayerLobbyScree
 
           {/* Header */}
           <div className="text-center mb-4 sm:mb-8">
-            <div className="text-3xl sm:text-5xl mb-2 sm:mb-4">⚔️</div>
+            <div className="mb-2 sm:mb-4 flex justify-center">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 8px ${cyberTheme.colors.primary}60)` }}>
+                <path d="M12 2L4 7v6c0 5 3.5 9.74 8 11 4.5-1.26 8-6 8-11V7l-8-5z" />
+                <path d="M8 12h8M12 8v8" />
+              </svg>
+            </div>
             <h1
               className="text-xl sm:text-2xl font-black uppercase tracking-wider mb-1 sm:mb-2"
               style={{
@@ -139,7 +144,10 @@ export function MultiplayerLobbyScreen({ className = '' }: MultiplayerLobbyScree
                     border: `1px solid ${cyberTheme.colors.primary}40`,
                   }}
                 >
-                  +
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
                 </div>
                 <div className="flex-1">
                   <h3
@@ -158,12 +166,9 @@ export function MultiplayerLobbyScreen({ className = '' }: MultiplayerLobbyScree
                     Start a new game and share the ID
                   </p>
                 </div>
-                <div
-                  className="text-xl"
-                  style={{ color: cyberTheme.colors.text.muted }}
-                >
-                  →
-                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.text.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               </div>
             </button>
 
@@ -216,7 +221,10 @@ export function MultiplayerLobbyScreen({ className = '' }: MultiplayerLobbyScree
                     border: `1px solid ${cyberTheme.colors.success}40`,
                   }}
                 >
-                  ⏎
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.success} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 10 4 15 9 20" />
+                    <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+                  </svg>
                 </div>
                 <div className="flex-1">
                   <h3
@@ -235,12 +243,9 @@ export function MultiplayerLobbyScreen({ className = '' }: MultiplayerLobbyScree
                     Enter a Game ID to join
                   </p>
                 </div>
-                <div
-                  className="text-xl"
-                  style={{ color: cyberTheme.colors.text.muted }}
-                >
-                  →
-                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.text.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               </div>
             </button>
           </div>

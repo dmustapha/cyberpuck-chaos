@@ -72,10 +72,13 @@ export function GameModeSelectorScreen({ className = '' }: GameModeSelectorScree
             SELECT GAME MODE
           </h1>
           <p
-            className="text-sm"
-            style={{ color: cyberTheme.colors.text.muted }}
+            className="text-xs uppercase tracking-widest"
+            style={{
+              color: cyberTheme.colors.text.muted,
+              fontFamily: cyberTheme.fonts.heading,
+            }}
           >
-            Choose how you want to play
+            Enter the arena. Choose your battle.
           </p>
         </div>
 
@@ -98,7 +101,15 @@ export function GameModeSelectorScreen({ className = '' }: GameModeSelectorScree
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <div className="text-4xl sm:text-5xl mb-3 sm:mb-4">🤖</div>
+            <div className="mb-3 sm:mb-4 flex justify-center">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.player.you} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="10" rx="2" />
+                <circle cx="8.5" cy="16" r="1.5" />
+                <circle cx="15.5" cy="16" r="1.5" />
+                <path d="M12 11V7a4 4 0 0 0-4-4H8" />
+                <path d="M12 11V7a4 4 0 0 1 4-4h0" />
+              </svg>
+            </div>
             <h3
               className="text-lg sm:text-xl font-bold uppercase mb-2"
               style={{
@@ -109,10 +120,13 @@ export function GameModeSelectorScreen({ className = '' }: GameModeSelectorScree
               VS AI
             </h3>
             <p
-              className="text-sm mb-3"
-              style={{ color: cyberTheme.colors.text.secondary }}
+              className="text-xs mb-3 uppercase tracking-wider"
+              style={{
+                color: cyberTheme.colors.text.secondary,
+                fontFamily: cyberTheme.fonts.heading,
+              }}
             >
-              Practice against computer opponents
+              Train against AI in chaos mode
             </p>
             <div
               className="text-xs uppercase tracking-wider py-1 px-2 rounded inline-block"
@@ -142,7 +156,12 @@ export function GameModeSelectorScreen({ className = '' }: GameModeSelectorScree
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <div className="text-4xl sm:text-5xl mb-3 sm:mb-4">⚔️</div>
+            <div className="mb-3 sm:mb-4 flex justify-center">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L4 7v6c0 5 3.5 9.74 8 11 4.5-1.26 8-6 8-11V7l-8-5z" />
+                <path d="M9 12l2 2 4-4" />
+              </svg>
+            </div>
             <h3
               className="text-lg sm:text-xl font-bold uppercase mb-2"
               style={{
@@ -153,10 +172,13 @@ export function GameModeSelectorScreen({ className = '' }: GameModeSelectorScree
               VS PLAYER
             </h3>
             <p
-              className="text-sm mb-3"
-              style={{ color: cyberTheme.colors.text.secondary }}
+              className="text-xs mb-3 uppercase tracking-wider"
+              style={{
+                color: cyberTheme.colors.text.secondary,
+                fontFamily: cyberTheme.fonts.heading,
+              }}
             >
-              Challenge real opponents online
+              Battle opponents on-chain for ELO
             </p>
             <div
               className="text-xs uppercase tracking-wider py-1 px-2 rounded inline-block"

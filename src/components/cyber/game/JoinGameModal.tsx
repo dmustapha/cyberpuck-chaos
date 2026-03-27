@@ -56,9 +56,9 @@ export function JoinGameModal({ isOpen, onClose }: JoinGameModalProps) {
   // Connect when shouldConnect becomes true
   useEffect(() => {
     if (shouldConnect && actualGameId && playerId) {
-      connect(actualGameId, playerId);
+      connect(actualGameId, playerId, address);
     }
-  }, [shouldConnect, actualGameId, playerId, connect]);
+  }, [shouldConnect, actualGameId, playerId, address, connect]);
 
   // Focus input when modal opens
   useEffect(() => {

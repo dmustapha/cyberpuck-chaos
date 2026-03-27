@@ -26,14 +26,16 @@ export function SeasonBanner({ className = '' }: SeasonBannerProps) {
       <div className="flex items-center gap-4">
         {/* Season icon */}
         <div
-          className="w-14 h-14 rounded-lg flex items-center justify-center text-3xl"
+          className="w-14 h-14 rounded-lg flex items-center justify-center"
           style={{
             backgroundColor: `${cyberTheme.colors.primary}20`,
             border: `2px solid ${cyberTheme.colors.primary}`,
             boxShadow: `0 0 15px ${cyberTheme.colors.primary}40`,
           }}
         >
-          ⚡
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" />
+          </svg>
         </div>
 
         {/* Season info */}

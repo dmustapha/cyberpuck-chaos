@@ -24,6 +24,10 @@ export class ChaosMiddleware {
     return this.executor.current;
   }
 
+  getExecutor(): ModifierExecutor {
+    return this.executor;
+  }
+
   getRecentTypes(): string[] {
     return this.agent.getRecentTypes();
   }
@@ -50,6 +54,7 @@ export class ChaosMiddleware {
   tick(
     bodies: PhysicsBodies,
     input: ChaosInput,
+    puckFrozen?: boolean,
   ): ChaosEvent | null {
     // 1. Tick the executor (handles expiry + velocity cap)
     const { expired, modifierId } = this.executor.tick(bodies);
@@ -59,9 +64,11 @@ export class ChaosMiddleware {
     }
 
     // 2. Check if we should observe (timing-based)
+    // Skip observation while puck is frozen — modifiers applied to a static puck are wasted
     const now = Date.now();
     if (
       !this.observing &&
+      !puckFrozen &&
       this.agent.shouldObserve(now) &&
       this.executor.current === null
     ) {

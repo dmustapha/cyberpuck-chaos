@@ -7,6 +7,11 @@ export interface GameState {
   paddle2: { x: number; y: number };
   score: { player1: number; player2: number };
   timestamp: number;
+  // Modifier-affected radii and freeze state (optional, only sent when non-default)
+  puckRadius?: number;
+  paddle1Radius?: number;
+  paddle2Radius?: number;
+  puckFrozen?: boolean;
 }
 
 export class PhysicsEngine {
@@ -27,6 +32,23 @@ export class PhysicsEngine {
   private lastTickTime: number = Date.now();
   private isPaused: boolean = false;
   private goalResetTimeout: NodeJS.Timeout | null = null;
+
+  // Puck freeze state (freeze at center after goal/start, then auto-serve)
+  private puckFrozenUntil: number = 0;
+  private frozenServeToward: 1 | 2 | null = null;
+
+  // Corner-stuck detection
+  private cornerStuckFrames: number = 0;
+  private static readonly CORNER_THRESHOLD = 40;
+  private static readonly STUCK_SPEED = 2;
+  private static readonly STUCK_FRAMES = 90;
+  private static readonly NUDGE_SPEED = 5;
+
+  // Modifier-adjusted speed cap
+  private maxSpeedOverride: number | null = null;
+
+  // Current radii from chaos executor (for state-update payload)
+  private currentRadii: { puck: number; paddle1: number; paddle2: number } | null = null;
 
   constructor() {
     // Create Matter.js engine with zero gravity (air hockey table)
@@ -64,9 +86,12 @@ export class PhysicsEngine {
       return; // Already running
     }
 
-    // Puck starts stationary at center - players must hit it to move
-    Matter.Body.setVelocity(this.puck, { x: 0, y: 0 });
+    // Puck starts frozen at center, auto-serves after 1.5s (matches AI mode)
     Matter.Body.setPosition(this.puck, { x: 0, y: 0 });
+    Matter.Body.setVelocity(this.puck, { x: 0, y: 0 });
+    Matter.Body.setStatic(this.puck, true);
+    this.puckFrozenUntil = Date.now() + 1500;
+    this.frozenServeToward = Math.random() > 0.5 ? 1 : 2;
 
     this.lastTickTime = Date.now(); // Initialize timing
     const tickMs = 1000 / PHYSICS_CONFIG.game.tickRate;
@@ -164,6 +189,13 @@ export class PhysicsEngine {
   getPaddle1Body(): Matter.Body { return this.paddle1; }
   getPaddle2Body(): Matter.Body { return this.paddle2; }
 
+  // --- Modifier integration ---
+  isPuckFrozen(): boolean { return this.puckFrozenUntil > 0 && Date.now() < this.puckFrozenUntil; }
+  setMaxSpeedOverride(speed: number | null): void { this.maxSpeedOverride = speed; }
+  setCurrentRadii(radii: { puck: number; paddle1: number; paddle2: number }): void {
+    this.currentRadii = radii;
+  }
+
   /**
    * Get the current game state
    */
@@ -185,6 +217,12 @@ export class PhysicsEngine {
       },
       score: { ...this.score },
       timestamp: Date.now(),
+      // Modifier-affected radii (only sent when non-default)
+      puckRadius: this.currentRadii?.puck,
+      paddle1Radius: this.currentRadii?.paddle1,
+      paddle2Radius: this.currentRadii?.paddle2,
+      // Freeze state
+      puckFrozen: this.isPuckFrozen() || undefined,
     };
   }
 
@@ -201,43 +239,27 @@ export class PhysicsEngine {
    *                      If not provided, resets to center (for game start or invalid state recovery)
    */
   resetPuck(serveToward?: 1 | 2): void {
-    const halfHeight = PHYSICS_CONFIG.table.height / 2;
-    let resetX = 0;
-    let resetY = 0;
-
-    if (serveToward) {
-      // After goal: place puck on loser's end (25% or 75% of table height from center)
-      // serveToward 1 means serve to player 1 (bottom, y > 0)
-      // serveToward 2 means serve to player 2 (top, y < 0)
-      resetY = serveToward === 1 ? halfHeight * 0.5 : -halfHeight * 0.5;
-    } else {
-      // Game start or invalid state: center position
-      // Check if paddle is near center and offset if needed
-      const safeDistance =
-        PHYSICS_CONFIG.puck.radius + PHYSICS_CONFIG.paddle.radius + 5;
-
-      const p1Dist = Math.sqrt(
-        Math.pow(this.paddle1.position.x - resetX, 2) +
-          Math.pow(this.paddle1.position.y - resetY, 2)
-      );
-
-      const p2Dist = Math.sqrt(
-        Math.pow(this.paddle2.position.x - resetX, 2) +
-          Math.pow(this.paddle2.position.y - resetY, 2)
-      );
-
-      if (p1Dist < safeDistance || p2Dist < safeDistance) {
-        if (p1Dist < p2Dist) {
-          resetY = -50;
-        } else {
-          resetY = 50;
-        }
-      }
-    }
-
-    Matter.Body.setPosition(this.puck, { x: resetX, y: resetY });
+    // Always reset to center (matches AI mode behavior)
+    Matter.Body.setPosition(this.puck, { x: 0, y: 0 });
     Matter.Body.setVelocity(this.puck, { x: 0, y: 0 });
     Matter.Body.setAngularVelocity(this.puck, 0);
+
+    // Freeze puck at center, then auto-serve after delay
+    Matter.Body.setStatic(this.puck, true);
+    this.puckFrozenUntil = Date.now() + 1000;
+    this.frozenServeToward = serveToward ?? (Math.random() > 0.5 ? 1 : 2);
+
+    // Reset paddles to home positions
+    Matter.Body.setPosition(this.paddle1, {
+      x: 0,
+      y: PHYSICS_CONFIG.table.height / 4,
+    });
+    Matter.Body.setPosition(this.paddle2, {
+      x: 0,
+      y: -PHYSICS_CONFIG.table.height / 4,
+    });
+
+    this.cornerStuckFrames = 0;
     this.goalScored = false;
   }
 
@@ -261,6 +283,11 @@ export class PhysicsEngine {
     // Clear paddle targets
     this.paddle1Target = null;
     this.paddle2Target = null;
+
+    // Clear modifier state
+    this.maxSpeedOverride = null;
+    this.currentRadii = null;
+    this.cornerStuckFrames = 0;
   }
 
   /**
@@ -270,6 +297,23 @@ export class PhysicsEngine {
     // STOP physics during goal pause - match AI mode behavior
     if (this.goalScored) {
       return;
+    }
+
+    // Puck freeze: skip physics while frozen, unfreeze + serve when expired
+    if (this.puckFrozenUntil > 0) {
+      if (Date.now() >= this.puckFrozenUntil) {
+        this.puckFrozenUntil = 0;
+        this.cornerStuckFrames = 0;
+        Matter.Body.setStatic(this.puck, false);
+        const vx = (Math.random() - 0.5) * 3;
+        const vy = this.frozenServeToward === 1 ? 4 : -4;
+        Matter.Body.setVelocity(this.puck, { x: vx, y: vy });
+        this.frozenServeToward = null;
+      } else {
+        // Still frozen — update timing but skip physics
+        this.lastTickTime = Date.now();
+        return;
+      }
     }
 
     const now = Date.now();
@@ -296,7 +340,29 @@ export class PhysicsEngine {
       return;
     }
 
-    // NOTE: Removed maintainMinimumSpeed() - puck should stay still until hit (like real air hockey)
+    // Wall-stuck detection — nudge puck toward center if trapped against any wall
+    const pos = this.puck.position;
+    const vel = this.puck.velocity;
+    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+    const halfW = PHYSICS_CONFIG.table.width / 2;
+    const halfH = PHYSICS_CONFIG.table.height / 2;
+    const nearSide = Math.abs(pos.x) > halfW - PhysicsEngine.CORNER_THRESHOLD;
+    const nearEnd = Math.abs(pos.y) > halfH - PhysicsEngine.CORNER_THRESHOLD;
+    const nearAnyWall = nearSide || nearEnd;
+
+    if (nearAnyWall && speed < PhysicsEngine.STUCK_SPEED) {
+      this.cornerStuckFrames++;
+      if (this.cornerStuckFrames >= PhysicsEngine.STUCK_FRAMES) {
+        const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y) || 1;
+        Matter.Body.setVelocity(this.puck, {
+          x: (-pos.x / dist) * PhysicsEngine.NUDGE_SPEED,
+          y: (-pos.y / dist) * PhysicsEngine.NUDGE_SPEED,
+        });
+        this.cornerStuckFrames = 0;
+      }
+    } else {
+      this.cornerStuckFrames = 0;
+    }
 
     // Check for goals (only if not already processing a goal)
     if (!this.goalScored) {
@@ -307,6 +373,7 @@ export class PhysicsEngine {
 
         // STOP puck and HIDE it off-screen during goal pause
         Matter.Body.setVelocity(this.puck, { x: 0, y: 0 });
+        Matter.Body.setStatic(this.puck, true);
         Matter.Body.setPosition(this.puck, { x: 0, y: -9999 }); // Hide off-screen
 
         if (this.onGoalCallback) {
@@ -570,8 +637,9 @@ export class PhysicsEngine {
       return;
     }
 
-    if (speed > PHYSICS_CONFIG.puck.maxSpeed && speed > 0) {
-      const scale = PHYSICS_CONFIG.puck.maxSpeed / speed;
+    const effectiveMax = this.maxSpeedOverride ?? PHYSICS_CONFIG.puck.maxSpeed;
+    if (speed > effectiveMax && speed > 0) {
+      const scale = effectiveMax / speed;
       Matter.Body.setVelocity(this.puck, {
         x: velocity.x * scale,
         y: velocity.y * scale,
@@ -683,7 +751,7 @@ export class PhysicsEngine {
     // Only trigger if puck is WAY outside bounds (not during normal wall bounces)
     const halfWidth = PHYSICS_CONFIG.table.width / 2;
     const halfHeight = PHYSICS_CONFIG.table.height / 2;
-    const escapeMargin = PHYSICS_CONFIG.puck.radius * 3; // 36 pixels past walls
+    const escapeMargin = PHYSICS_CONFIG.puck.radius * 3; // 3× puck radius past walls
 
     const escapedX = Math.abs(pos.x) > halfWidth + escapeMargin;  // |x| > 286
     const escapedY = Math.abs(pos.y) > halfHeight + escapeMargin; // |y| > 411

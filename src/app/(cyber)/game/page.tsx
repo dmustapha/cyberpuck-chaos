@@ -221,8 +221,10 @@ function CyberGameContent() {
   useEffect(() => {
     if (isInMultiplayerGameplay) return; // Multiplayer handles its own modifiers
     if (localChaosModifier) {
+      console.log('[GamePage] Applying modifier:', localChaosModifier.type, localChaosModifier.variation, 'target:', localChaosModifier.target, 'intensity:', localChaosModifier.intensity, 'duration:', localChaosModifier.duration);
       applyGameModifier(localChaosModifier);
     } else {
+      console.log('[GamePage] Reverting modifier');
       revertGameModifier();
     }
   }, [localChaosModifier, applyGameModifier, revertGameModifier, isInMultiplayerGameplay]);

@@ -10,6 +10,7 @@ export function useOnChainRecording() {
   const status = useGameStore((s) => s.status);
   const mode = useGameStore((s) => s.mode);
   const setTxResult = useGameStore((s) => s.setTxResult);
+  const setTxPending = useGameStore((s) => s.setTxPending);
   const getMatchResult = useGameStore((s) => s.getMatchResult);
   const { address } = useDynamicWallet();
   const firedRef = useRef(false);
@@ -23,6 +24,7 @@ export function useOnChainRecording() {
     firedRef.current = true;
 
     const result = getMatchResult();
+    setTxPending(true);
 
     fetch(`${API_URL}/api/record-match`, {
       method: 'POST',
@@ -39,8 +41,13 @@ export function useOnChainRecording() {
       .then((data) => {
         if (data.digest) {
           setTxResult(data.digest, data.explorerUrl);
+        } else {
+          setTxPending(false);
         }
       })
-      .catch((err) => console.error('[OnChainRecording] Failed:', err));
-  }, [status, mode, address, setTxResult, getMatchResult]);
+      .catch((err) => {
+        console.error('[OnChainRecording] Failed:', err);
+        setTxPending(false);
+      });
+  }, [status, mode, address, setTxResult, setTxPending, getMatchResult]);
 }

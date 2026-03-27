@@ -57,7 +57,7 @@ export default function CyberHomePage() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.3 }}
+          viewport={{ once: true, amount: 0.1 }}
           variants={fadeInUp}
           transition={{ duration: 0.6 }}
           className="mb-8"
@@ -70,7 +70,7 @@ export default function CyberHomePage() {
           className="grid grid-cols-1 lg:grid-cols-2 gap-8"
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.1 }}
           variants={staggerContainer}
         >
           {/* Profile Preview */}
@@ -94,7 +94,7 @@ export default function CyberHomePage() {
             }}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, amount: 0.5 }}
+            viewport={{ once: true, amount: 0.1 }}
             variants={fadeInUp}
             transition={{ duration: 0.6 }}
           >
@@ -105,28 +105,28 @@ export default function CyberHomePage() {
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.1 }}
             variants={staggerContainer}
           >
             {/* Feature cards */}
             {[
               {
-                icon: '🏆',
                 title: 'Ranked Matches',
                 description:
                   'Compete in ranked matches to climb the ELO ladder and prove your skills.',
+                iconPath: 'M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7M4 22h16M10 22V2h4v20M6 22V10h12v12',
               },
               {
-                icon: '🎖️',
-                title: 'Achievements',
+                title: 'Chaos Modifiers',
                 description:
-                  'Unlock 25+ achievements and earn exclusive titles to show off.',
+                  'AI-driven chaos modifiers shake up every match — speed boosts, giant paddles, invisible pucks.',
+                iconPath: 'M13 2L3 14h9l-1 8 10-12h-9l1-8',
               },
               {
-                icon: '📊',
-                title: 'Detailed Stats',
+                title: 'On-Chain Proof',
                 description:
-                  'Track your performance with comprehensive match history and statistics.',
+                  'Every match is recorded on-chain. Your wins are permanent and verifiable.',
+                iconPath: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
               },
             ].map((feature, i) => (
               <motion.div
@@ -139,7 +139,11 @@ export default function CyberHomePage() {
                 variants={staggerItem}
                 transition={{ duration: 0.5 }}
               >
-                <div className="text-4xl mb-4">{feature.icon}</div>
+                <div className="flex justify-center mb-4">
+                  <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke={theme.colors.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={feature.iconPath} />
+                  </svg>
+                </div>
                 <h3
                   className="text-lg font-bold mb-2"
                   style={{

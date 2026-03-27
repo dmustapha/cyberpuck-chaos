@@ -20,12 +20,51 @@ interface ToastProps {
   className?: string;
 }
 
-const typeConfig: Record<ToastType, { color: string; icon: string }> = {
-  achievement: { color: '#ffd700', icon: '🏆' },
-  success: { color: '#22c55e', icon: '✓' },
-  error: { color: '#ef4444', icon: '✕' },
-  info: { color: '#3b82f6', icon: 'ℹ' },
-  warning: { color: '#fbbf24', icon: '⚠' },
+const typeConfig: Record<ToastType, { color: string; icon: React.ReactNode }> = {
+  achievement: {
+    color: '#ffd700',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffd700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+        <path d="M4 22h16" />
+        <path d="M10 22V14.6a7 7 0 0 1-3.3-5.3L6 4h12l-.7 5.3A7 7 0 0 1 14 14.6V22" />
+      </svg>
+    ),
+  },
+  success: {
+    color: '#22c55e',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    ),
+  },
+  error: {
+    color: '#ef4444',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    ),
+  },
+  info: {
+    color: '#3b82f6',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+      </svg>
+    ),
+  },
+  warning: {
+    color: '#fbbf24',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
+  },
 };
 
 export function Toast({

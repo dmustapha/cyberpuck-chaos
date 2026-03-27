@@ -2,6 +2,8 @@
 // Shared types and constants used by both server and client.
 // Client imports via copy or shared package.
 
+import { PHYSICS } from '../physics/config';
+
 // === Modifier Types ===
 
 export type ModifierType =
@@ -72,19 +74,18 @@ export interface ModifierDecisionResult {
   } | null;
 }
 
-// === Physics Config (UNIFIED — no mismatch between AI and multiplayer) ===
+// === Physics Config (derived from config.ts — single source of truth) ===
 
 export const PHYSICS_CONFIG = {
-  puckRadius: 14,
-  puckRestitution: 0.95,
-  puckFrictionAir: 0.001,
-  puckMaxSpeed: 22,
-  puckMinSpeed: 2,
-  paddleRadius: 36,
-  tableWidth: 400,
-  tableHeight: 700,
-  goalWidth: 120,
-  wallThickness: 20,
+  puckRadius: PHYSICS.puck.radius,
+  puckRestitution: PHYSICS.puck.restitution,
+  puckFrictionAir: PHYSICS.puck.frictionAir,
+  puckMaxSpeed: PHYSICS.puck.maxSpeed,
+  paddleRadius: PHYSICS.paddle.radius,
+  tableWidth: PHYSICS.table.width,
+  tableHeight: PHYSICS.table.height,
+  goalWidth: PHYSICS.table.goalWidth,
+  wallThickness: PHYSICS.table.wallThickness,
 } as const;
 
 // === Chaos Agent Timing ===
@@ -106,7 +107,7 @@ export const CHAOS_TIMING = {
   fastInterval: 11_000,         // 10s active + 1s interval gap (~4s felt with LLM)
   modifierDuration: 10_000,     // 10s per modifier
   maxActiveModifiers: 1,
-  llmTimeoutMs: 8_000,
+  llmTimeoutMs: 3_000,
 } as const;
 
 export function getChaosInterval(highScore: number, maxScore: number): number {

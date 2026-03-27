@@ -10,20 +10,11 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { HUDPanel } from '../ui/HUDPanel';
 import { ProgressBar } from '../ui/ProgressBar';
 import { getProgressToNextDivision, getEloToNextDivision, formatRank } from '@/lib/cyber/elo';
-import type { RankTier } from '@/types/player';
+import { TierIcon } from '../ui/TierIcon';
 
 interface RankCardProps {
   className?: string;
 }
-
-const tierIcons: Record<RankTier, string> = {
-  BRONZE: '🥉',
-  SILVER: '🥈',
-  GOLD: '🥇',
-  PLATINUM: '💎',
-  DIAMOND: '💠',
-  MASTER: '👑',
-};
 
 export function RankCard({ className = '' }: RankCardProps) {
   const profile = usePlayerStore((state) => state.profile);
@@ -55,7 +46,7 @@ export function RankCard({ className = '' }: RankCardProps) {
             boxShadow: `0 0 30px ${rankColor}40`,
           }}
         >
-          {tierIcons[profile.rank.tier]}
+          <TierIcon tier={profile.rank.tier} size={40} />
         </div>
 
         {/* Rank text */}

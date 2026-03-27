@@ -70,28 +70,44 @@ export function TransactionStatus({
   // Status-specific styling
   const statusConfig = {
     pending: {
-      icon: '⏳',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.warning} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M10 2h4" />
+        </svg>
+      ),
       label: 'Waiting for signature...',
       color: cyberTheme.colors.warning,
       bgColor: `${cyberTheme.colors.warning}15`,
       borderColor: `${cyberTheme.colors.warning}40`,
     },
     confirming: {
-      icon: '🔄',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12a9 9 0 11-6.219-8.56" />
+        </svg>
+      ),
       label: 'Confirming on chain...',
       color: cyberTheme.colors.primary,
       bgColor: `${cyberTheme.colors.primary}15`,
       borderColor: `${cyberTheme.colors.primary}40`,
     },
     success: {
-      icon: '✅',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.success} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><polyline points="16 10 10.5 15.5 8 13" />
+        </svg>
+      ),
       label: 'Transaction confirmed!',
       color: cyberTheme.colors.success,
       bgColor: `${cyberTheme.colors.success}15`,
       borderColor: `${cyberTheme.colors.success}40`,
     },
     error: {
-      icon: '❌',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.error} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+      ),
       label: 'Transaction failed',
       color: cyberTheme.colors.error,
       bgColor: `${cyberTheme.colors.error}15`,
@@ -120,7 +136,7 @@ export function TransactionStatus({
             boxShadow: `0 0 20px ${config.color}30`,
           }}
         >
-          <span className="text-2xl">{config.icon}</span>
+          <span className="flex-shrink-0">{config.icon}</span>
           <div className="flex-1">
             <div
               className="font-bold mb-1"

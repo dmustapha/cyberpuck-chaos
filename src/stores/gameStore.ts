@@ -82,6 +82,7 @@ interface GameStore {
   // On-chain recording
   txDigest: string | null;
   txExplorerUrl: string | null;
+  txPending: boolean;
 
   // Extended mode
   gameModeType: GameModeType;
@@ -113,6 +114,7 @@ interface GameStore {
 
   // On-chain recording actions
   setTxResult: (digest: string, url: string) => void;
+  setTxPending: (pending: boolean) => void;
 
   // Mode actions
   setGameModeType: (modeType: GameModeType) => void;
@@ -177,6 +179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // On-chain recording
   txDigest: null,
   txExplorerUrl: null,
+  txPending: false,
 
   // Game page state
   pageState: 'mode-selection',
@@ -265,8 +268,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pageState: 'mode-selection',
     }),
 
-  // On-chain recording setter
-  setTxResult: (digest, url) => set({ txDigest: digest, txExplorerUrl: url }),
+  // On-chain recording setters
+  setTxResult: (digest, url) => set({ txDigest: digest, txExplorerUrl: url, txPending: false }),
+  setTxPending: (pending) => set({ txPending: pending }),
 
   // Mode setters
   setGameModeType: (modeType) => set({ gameModeType: modeType }),
@@ -503,6 +507,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // Reset on-chain recording state
       txDigest: null,
       txExplorerUrl: null,
+      txPending: false,
       // Reset extended mode state
       gameModeType: 'ai',
       multiplayerGameInfo: null,

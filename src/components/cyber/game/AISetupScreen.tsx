@@ -23,25 +23,22 @@ interface AISetupScreenProps {
 
 const difficultyConfig: Record<
   Difficulty,
-  { label: string; description: string; color: string; icon: string }
+  { label: string; description: string; color: string }
 > = {
   easy: {
     label: 'EASY',
-    description: 'Slower AI, good for practice',
+    description: 'Warm up the reflexes',
     color: '#22c55e',
-    icon: '🟢',
   },
   medium: {
     label: 'MEDIUM',
-    description: 'Balanced gameplay',
+    description: 'Chaos gets real',
     color: '#fbbf24',
-    icon: '🟡',
   },
   hard: {
     label: 'HARD',
-    description: 'Fast and aggressive AI',
+    description: 'No mercy. Pure chaos.',
     color: '#ef4444',
-    icon: '🔴',
   },
 };
 
@@ -84,7 +81,15 @@ export function AISetupScreen({ className = '' }: AISetupScreenProps) {
       <HUDPanel className="relative z-10 w-full max-w-lg" variant="glow" padding="lg">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🤖</div>
+          <div className="mb-4 flex justify-center">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 8px ${cyberTheme.colors.primary}60)` }}>
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="8.5" cy="16" r="1.5" />
+              <circle cx="15.5" cy="16" r="1.5" />
+              <path d="M12 11V7a4 4 0 0 0-4-4H8" />
+              <path d="M12 11V7a4 4 0 0 1 4-4h0" />
+            </svg>
+          </div>
           <h1
             className="text-2xl font-black uppercase tracking-wider mb-2"
             style={{
@@ -125,7 +130,10 @@ export function AISetupScreen({ className = '' }: AISetupScreenProps) {
                   border: `2px solid ${cyberTheme.colors.player.you}`,
                 }}
               >
-                👤
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cyberTheme.colors.player.you} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               </div>
               <div>
                 <div
@@ -177,7 +185,14 @@ export function AISetupScreen({ className = '' }: AISetupScreenProps) {
                     boxShadow: isSelected ? `0 0 15px ${config.color}40` : 'none',
                   }}
                 >
-                  <div className="text-2xl mb-2">{config.icon}</div>
+                  <div
+                    className="w-6 h-6 rounded-full mx-auto mb-2"
+                    style={{
+                      backgroundColor: isSelected ? config.color : `${config.color}40`,
+                      boxShadow: isSelected ? `0 0 12px ${config.color}` : 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  />
                   <div
                     className="font-bold mb-1"
                     style={{

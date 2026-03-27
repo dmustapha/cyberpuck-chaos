@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { cyberTheme, getRankColor } from '@/lib/cyber/theme';
 import { HUDPanel } from '../ui/HUDPanel';
 import { CyberButton } from '../ui/CyberButton';
+import { TierIcon } from '../ui/TierIcon';
 import type { RankTier } from '@/types/player';
 
 interface LeaderboardEntry {
@@ -30,15 +31,6 @@ const mockLeaderboard: LeaderboardEntry[] = [
   { rank: 4, username: 'StormRider', tier: 'DIAMOND', elo: 2250 },
   { rank: 5, username: 'FrostByte', tier: 'DIAMOND', elo: 2180 },
 ];
-
-const tierIcons: Record<RankTier, string> = {
-  BRONZE: '🥉',
-  SILVER: '🥈',
-  GOLD: '🥇',
-  PLATINUM: '💎',
-  DIAMOND: '💠',
-  MASTER: '👑',
-};
 
 export function LeaderboardTeaser({ className = '' }: LeaderboardTeaserProps) {
   return (
@@ -89,7 +81,7 @@ export function LeaderboardTeaser({ className = '' }: LeaderboardTeaserProps) {
             </div>
 
             {/* Icon */}
-            <span className="text-lg">{tierIcons[entry.tier]}</span>
+            <TierIcon tier={entry.tier} size={20} />
 
             {/* Username */}
             <span
