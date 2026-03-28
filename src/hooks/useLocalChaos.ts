@@ -30,7 +30,10 @@ const FAST_INTERVAL = 11000; // 10s active + 1s gap (~4s felt with LLM)
 const FIRST_OBSERVE_DELAY = 5000; // 5s before first modifier
 const MODIFIER_DURATION = 10000; // 10s per modifier
 
-const SERVER_URL = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws', '') || 'http://localhost:3001';
+// Always use the same-origin Next.js API route for chaos decisions.
+// NEXT_PUBLIC_WS_URL is for WebSocket (multiplayer) — NOT for the chaos REST endpoint.
+// The Render server may be cold-starting (30-60s delay) which breaks modifier timing.
+const CHAOS_API_URL = '/api/chaos/observe';
 
 // Score thresholds per maxScore setting
 // [mediumThreshold, fastThreshold] — when highest score reaches these, interval ramps
@@ -178,7 +181,7 @@ export function useLocalChaos({ enabled }: UseLocalChaosOptions) {
         maxScore,
       };
 
-      fetch(`${SERVER_URL}/api/chaos/observe`, {
+      fetch(CHAOS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
