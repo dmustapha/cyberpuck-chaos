@@ -58,6 +58,7 @@ export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
   // Reset state for new game
   cornerStuckFrames = 0;
   activeMaxSpeed = null;
+  activePuckRadius = null;
   puckFrozenUntil = 0;
   frozenPuckRef = null;
   frozenServeToward = undefined;
@@ -175,9 +176,11 @@ export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
     const state = paddleStates[player];
     const now = performance.now();
 
-    // Use smaller edge margin to allow paddle to reach visual edges
-    // The physics walls will prevent actual escape
-    const edgeMargin = paddleConfig.radius * 0.3;
+    // Edge margin scales with effective paddle radius so grown/shrunk paddles
+    // don't clip through walls or lose access to the edges
+    const paddleKey = player === 'player1' ? 'paddle1' : 'paddle2';
+    const currentPaddleRadius = modifierState.trueRadii[paddleKey];
+    const edgeMargin = currentPaddleRadius * 0.3;
 
     // Constrain X to table bounds (allow closer to edges)
     const clampedX = Math.max(
@@ -261,6 +264,7 @@ export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
   function applyGameModifier(modifier: ActiveModifier): void {
     modifierState = applyModifier(modifierState, bodies, modifier);
     activeMaxSpeed = modifierState.activeMaxSpeed;
+    activePuckRadius = modifierState.trueRadii.puck;
   }
 
   /**
@@ -269,6 +273,7 @@ export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
   function revertGameModifier(): void {
     modifierState = revertModifier(modifierState, bodies);
     activeMaxSpeed = null;
+    activePuckRadius = null;
   }
 
   /**
@@ -303,6 +308,9 @@ export function createGameEngine(callbacks: EngineCallbacks): GameEngine {
 
 // Active modifier max speed — null means use config default
 let activeMaxSpeed: number | null = null;
+
+// Active modifier puck radius — null means use config default
+let activePuckRadius: number | null = null;
 
 // Puck freeze state — 0 means not frozen, >0 means frozen until that timestamp
 let puckFrozenUntil = 0;
@@ -366,7 +374,9 @@ export function updatePhysics(engine: Matter.Engine, delta: number): void {
     }
 
     // 2. Clamp puck position to arena bounds (prevents tunneling escape)
-    const margin = puckConfig.radius + 5; // Small buffer inside walls
+    // Uses effective radius so a grown puck isn't clamped into walls
+    const effectiveRadius = activePuckRadius ?? puckConfig.radius;
+    const margin = effectiveRadius + 5;
     const minX = margin;
     const maxX = table.width - margin;
     const minY = margin;
@@ -388,14 +398,14 @@ export function updatePhysics(engine: Matter.Engine, delta: number): void {
       });
     }
 
-    // 3. Corner stuck detection — nudge puck toward center if trapped
+    // 3. Wall-stuck detection — nudge puck toward center if trapped against any wall
     // Use fresh position and velocity after all clamps above
     const curPos = puckBody.position;
     const curSpeed = Math.sqrt(puckBody.velocity.x ** 2 + puckBody.velocity.y ** 2);
     const nearSideWall = curPos.x < CORNER_THRESHOLD || curPos.x > table.width - CORNER_THRESHOLD;
     const nearEndWall = curPos.y < CORNER_THRESHOLD || curPos.y > table.height - CORNER_THRESHOLD;
 
-    if (nearSideWall && nearEndWall && curSpeed < STUCK_SPEED) {
+    if ((nearSideWall || nearEndWall) && curSpeed < STUCK_SPEED) {
       cornerStuckFrames++;
       if (cornerStuckFrames >= STUCK_FRAMES) {
         const centerX = table.width / 2;
